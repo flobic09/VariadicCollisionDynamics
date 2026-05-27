@@ -1,6 +1,7 @@
 ﻿
 #include "plugin.hpp"
 #include "logger.hpp"
+#include "eventSinks.h"
 
 static void MessageHandler(SKSE::MessagingInterface::Message* msg) {
     switch (msg->type) {
@@ -40,5 +41,6 @@ SKSEPluginLoad(const SKSE::LoadInterface* skse) {
     setupLog(spdlog::level::info);
     logger::info("Variadic Collision Dynamics Plugin is Loaded");
     SKSE::GetMessagingInterface()->RegisterListener(MessageHandler);
+    EventSinks::InstallEventSinks(); 
     return true;
 }
