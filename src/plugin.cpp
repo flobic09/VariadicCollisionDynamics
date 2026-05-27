@@ -1,7 +1,8 @@
 ﻿
 #include "plugin.hpp"
 #include "logger.hpp"
-#include "eventSinks.h"
+#include "eventSinks.hpp"
+#include "manager.hpp"
 
 static void MessageHandler(SKSE::MessagingInterface::Message* msg) {
     switch (msg->type) {
@@ -23,12 +24,13 @@ static void MessageHandler(SKSE::MessagingInterface::Message* msg) {
     }
     case SKSE::MessagingInterface::kNewGame:
     {
-   
+
         break;
     }
     case SKSE::MessagingInterface::kDataLoaded:
     {
-     
+        VCD::Manager::GetSingleton().LoadPresetMeshes();
+        EventSinks::InstallEventSinks();
         break;
     }
     default:
@@ -41,6 +43,5 @@ SKSEPluginLoad(const SKSE::LoadInterface* skse) {
     setupLog(spdlog::level::info);
     logger::info("Variadic Collision Dynamics Plugin is Loaded");
     SKSE::GetMessagingInterface()->RegisterListener(MessageHandler);
-    EventSinks::InstallEventSinks(); 
     return true;
 }
