@@ -34,7 +34,7 @@ static void MessageHandler(SKSE::MessagingInterface::Message* msg) {
             logger::error("Presets Are Not Loaded Cant Continue");
         }
 
-        EventSinks::InstallEventSinks();
+        //EventSinks::InstallEventSinks();
         break;
     }
     default:

@@ -3,10 +3,15 @@
 #include "plugin.hpp"
 
 #include <string_view>
+#include <filesystem>
+#include <string>
+
+namespace fs = std::filesystem;
 
 namespace VCD {
 
-    constexpr std::string_view kCharacterBumperNodeName = "CharacterBumper";
+    inline constexpr std::string_view kCharacterBumperNodeName = "CharacterBumper";
+    inline constexpr std::string_view kTemplateMeshDir = R"(meshes\Variadic Collision Tweaks\Templates)";
 
     enum class Preset
     {
@@ -19,8 +24,8 @@ namespace VCD {
     struct PresetMesh
     {
         Preset preset{};
-        std::string_view name{};
-        std::string_view path{};
+        std::string name{};
+        std::string path{};
 
         RE::NiPointer<RE::NiNode> root{};
         RE::NiPointer<RE::bhkSPCollisionObject> spCollisionObject{};
@@ -28,6 +33,7 @@ namespace VCD {
         bool loaded{ false };
         bool foundCharacterBumper{ false };
         bool foundBhkSPCollisionObject{ false };
+        bool foundCapsuleShape{ false };
 
         RE::BSResource::ErrorCode loadResult{};
     };
@@ -38,5 +44,14 @@ namespace VCD {
     {
         return static_cast<std::underlying_type_t<Enum>>(a_value);
     }
+
+    inline std::string MakeTemplatePath(const std::string& a_fileName)
+    {
+        std::string path{ kTemplateMeshDir };
+        path += '\\';
+        path += a_fileName;
+        return path;
+    }
+
 
 }

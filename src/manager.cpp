@@ -16,26 +16,25 @@ Manager::Manager() :
         PresetMesh{
             Preset::kVanillaLike,
             "Vanilla-like",
-            R"(meshes\Variadic Collision Tweaks\Templates\VanillaLike.nif)"
+            MakeTemplatePath("VanillaLike.nif")
         },
         PresetMesh{
             Preset::kPersonalSpace,
             "Personal Space",
-            R"(meshes\Variadic Collision Tweaks\Templates\PersonalSpace.nif)"
+            MakeTemplatePath("PersonalSpace.nif")
         },
         PresetMesh{
             Preset::kCompact,
             "Compact",
-            R"(meshes\Variadic Collision Tweaks\Templates\Compact.nif)"
+            MakeTemplatePath("Compact.nif")
         },
         PresetMesh{
             Preset::kBulky,
             "Bulky",
-            R"(meshes\Variadic Collision Tweaks\Templates\Bulky.nif)"
+            MakeTemplatePath("Bulky.nif")
         }
     } }
-{
-}
+{ }
 
 void Manager::LoadPresetMeshes()
 {
@@ -71,13 +70,15 @@ bool Manager::LoadPresetMesh(PresetMesh& a_mesh)
     RE::NiPointer<RE::NiNode> loadedRoot;
     RE::BSModelDB::DBTraits::ArgsType args{};
 
-    const auto result = RE::BSModelDB::Demand(a_mesh.path.data(), loadedRoot, args);
+    const auto result = RE::BSModelDB::Demand(a_mesh.path.c_str(), loadedRoot, args);
     a_mesh.loadResult = result;
 
     if (result != RE::BSResource::ErrorCode::kNone || !loadedRoot) {
         logger::error("Failed to load preset [{}]. path=[{}], errorCode={}", a_mesh.name, a_mesh.path, static_cast<int>(result));
         return false;
     }
+
+    // We should have the Havok object created by now.
 
     a_mesh.root = loadedRoot;
     a_mesh.loaded = true;
@@ -90,7 +91,6 @@ bool Manager::LoadPresetMesh(PresetMesh& a_mesh)
 
     a_mesh.foundCharacterBumper = true;
 
-    // Probably we won't need collisionObject but it's nice to check for safety before copying the character bumper node.
     auto* collisionObject = bumperObject->collisionObject.get();
     if (!collisionObject) {
         logger::error("Preset [{}] loaded and CharacterBumper found, but it has no collision object", a_mesh.name);
@@ -108,7 +108,49 @@ bool Manager::LoadPresetMesh(PresetMesh& a_mesh)
 
     a_mesh.spCollisionObject = RE::NiPointer<RE::bhkSPCollisionObject>(spCollisionObject);
 
-    logger::info("Preset [{}] OK", a_mesh.name, loadedRoot->name.c_str());
+    auto* body = spCollisionObject->body.get();
+    if (!body) {
+        logger::error("Preset [{}] bhkSPCollisionObject has no body", a_mesh.name);
+        return false;
+    }
+
+    auto* bhkPhantom = static_cast<RE::bhkShapePhantom*>(body);
+    if (!bhkPhantom) {
+        logger::error( "Preset [{}] bhkSPCollisionObject body is not bhkShapePhantom", a_mesh.name);
+        return false;
+    }
+
+    auto* referencedObject = bhkPhantom->referencedObject.get();
+    if (!referencedObject) {
+        logger::error("Preset [{}] bhkShapePhantom has no referenced Havok object", a_mesh.name);
+        return false;
+    }
+
+    auto* simpleShapePhantom = static_cast<RE::hkpSimpleShapePhantom*>(referencedObject);
+
+    if (!simpleShapePhantom) {
+        logger::error("Preset [{}] referenced object is not hkpSimpleShapePhantom", a_mesh.name);
+        return false;
+    }
+
+    const auto* shape = simpleShapePhantom->collidable.shape;
+    if (!shape) {
+        logger::error("Preset [{}] hkpSimpleShapePhantom has no collidable shape", a_mesh.name);
+        return false;
+    }
+
+    if (shape->type != RE::hkpShapeType::kCapsule) {
+        logger::error("Preset [{}] shape is not capsule. shapeType={}", a_mesh.name, static_cast<std::uint32_t>(shape->type));
+        return false;
+    }
+
+    const auto* capsuleShape = static_cast<const RE::hkpCapsuleShape*>(shape);
+    if (!capsuleShape) {
+        logger::error("Preset [{}] failed to cast shape to hkpCapsuleShape", a_mesh.name);
+        return false;
+    }
+
+    a_mesh.foundCapsuleShape = true;
 
     return true;
 }
