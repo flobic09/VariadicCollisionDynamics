@@ -50,7 +50,7 @@ namespace EventSinks {
 			return RE::BSEventNotifyControl::kContinue;
 		}
 
-		auto manager = VCD::Manager::GetSingleton();
+		auto& manager = VCD::Manager::GetSingleton();
 
 		auto& collisionNode =
 			VCD::Manager::GetSingleton().GetPresetMeshes()
