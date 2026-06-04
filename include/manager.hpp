@@ -17,15 +17,16 @@ namespace VCD {
         void LoadPresetMeshes();
 		void ClearLoadedMeshes();
 
-        //works but player falls through floor halfway not sure why yet
-        bool SetPreset(RE::Actor* a_actor, VCD::Preset a_preset);
+        bool SetPreset(const RE::Actor* a_actor, const VCD::Preset& a_preset);
 
-        bool SetCollisionShape(RE::bhkCharProxyController* a_controller,
-            const RE::hkpShape* a_shape);
+        bool SetCollisionShape(RE::bhkCharProxyController* a_controller, const RE::hkpShape* a_shape);
 
         bool AreAllPresetMeshesLoaded() const;
         std::size_t GetLoadedPresetCount() const;
         const std::array<PresetMesh, 4>& GetPresetMeshes() const noexcept;
+        const PresetMesh* GetPresetMesh(const VCD::Preset& a_preset) const;
+        RE::hkpCapsuleShape* GetPresetShape(const VCD::Preset& a_preset);
+        const RE::hkpCapsuleShape* GetPresetShape(const VCD::Preset& a_preset) const;
 
     private:
 
@@ -34,6 +35,9 @@ namespace VCD {
         bool LoadPresetMesh(PresetMesh& a_mesh);
 
         RE::NiAVObject* FindCharacterBumper(RE::NiNode* a_root) const;
+        RE::hkpCapsuleShape* FindWorldCharacterBumperShape(RE::bhkCharProxyController* a_controller) const;
+        RE::hkpCapsuleShape* FindCharacterBumperShape(RE::hkpShape* a_shape, const RE::hkpShapeKey& a_key) const;
+        bool IsCharacterBumperShape(const RE::hkpShape* a_shape, const RE::hkpShapeKey& a_key) const;
 
         std::array<PresetMesh, 4> presetMeshes;
     };

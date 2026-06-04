@@ -1,6 +1,7 @@
 #include "menu.hpp"
 #include "preset.hpp"
 #include "manager.hpp"
+#include "logger.hpp"
 
 namespace UI {
 
@@ -27,56 +28,45 @@ namespace UI {
         if (ImGuiMCP::Button("0.Vanilla Like"))
         {
             currentPreset = Preset::kVanillaLike;
-            auto manager = VCD::Manager::GetSingleton();
-            manager.SetPreset(player, currentPreset);
+            auto& manager = VCD::Manager::GetSingleton();
+            logger::info("Debug menu SetPreset result: {}", manager.SetPreset(player, currentPreset));
         }
 
         if (ImGuiMCP::Button("1.Personal Space"))
         {
             currentPreset = Preset::kPersonalSpace;
-            auto manager = VCD::Manager::GetSingleton();
-            manager.SetPreset(player, currentPreset);
+            auto& manager = VCD::Manager::GetSingleton();
+            logger::info("Debug menu SetPreset result: {}", manager.SetPreset(player, currentPreset));
         }
 
         if (ImGuiMCP::Button("2.Compact"))
         {
             currentPreset = Preset::kCompact;
-            auto manager = VCD::Manager::GetSingleton();
-            manager.SetPreset(player, currentPreset);
+            auto& manager = VCD::Manager::GetSingleton();
+            logger::info("Debug menu SetPreset result: {}", manager.SetPreset(player, currentPreset));
         }
 
         if (ImGuiMCP::Button("3.Bulky"))
         {
             currentPreset = Preset::kBulky;
-            auto manager = VCD::Manager::GetSingleton();
-            manager.SetPreset(player, currentPreset);
+            auto& manager = VCD::Manager::GetSingleton();
+            logger::info("Debug menu SetPreset result: {}", manager.SetPreset(player, currentPreset));
         }
 
+        auto& manager = VCD::Manager::GetSingleton();
+        auto* selectedShape = manager.GetPresetShape(currentPreset);
+        static Preset sliderPreset = Preset::kVanillaLike;
         static float radius = 0.0f;
 
-        if (ImGuiMCP::SliderFloat("Capsule Radius", &radius, -100.f, 100.f))
+        if (selectedShape && (sliderPreset != currentPreset || radius <= 0.0f)) {
+            sliderPreset = currentPreset;
+            radius = selectedShape->radius;
+        }
+
+        if (selectedShape && ImGuiMCP::SliderFloat("Capsule Radius", &radius, 0.0f, 1.0f))
         {
-            auto& mesh =
-                VCD::Manager::GetSingleton()
-                .GetPresetMeshes()[VCD::ToUnderlying(Preset::kBulky)];
-
-            auto* sp = mesh.spCollisionObject.get();
-            if (!sp || !sp->body)
-                return;
-
-            auto* worldObj =
-                static_cast<RE::hkpWorldObject*>(sp->body->referencedObject.get());
-
-            auto* shape = const_cast<RE::hkpShape*>(worldObj->collidable.shape);
-
-            if (!shape || shape->type != RE::hkpShapeType::kCapsule)
-                return;
-
-            auto* capsule =
-                static_cast<RE::hkpCapsuleShape*>(shape);
-
-            
-            capsule->radius = radius;
+            selectedShape->radius = radius;
+            manager.SetPreset(player, currentPreset);
         }
  
         ImGuiMCP::Separator();

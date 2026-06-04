@@ -56,22 +56,22 @@ void Manager::ClearLoadedMeshes()
 {
     for (auto& presetMesh : presetMeshes) {
         presetMesh.root = nullptr;
+        presetMesh.spCollisionObject = nullptr;
+        presetMesh.data = {};
         presetMesh.loaded = false;
         presetMesh.foundCharacterBumper = false;
         presetMesh.foundBhkSPCollisionObject = false;
+        presetMesh.foundCapsuleShape = false;
         presetMesh.loadResult = {};
     }
 }
 
-bool Manager::SetCollisionShape(RE::bhkCharProxyController* a_controller,
-    const RE::hkpShape* a_shape)
+bool Manager::SetCollisionShape(RE::bhkCharProxyController* a_controller, const RE::hkpShape* a_shape)
 {
     if (!a_controller || !a_shape)
         return false;
 
-    auto proxy = static_cast<RE::hkpCharacterProxy*>(
-        a_controller->proxy.referencedObject.get()
-        );
+    auto* proxy = skyrim_cast<RE::hkpCharacterProxy*>(a_controller->proxy.referencedObject.get());
 
     if (!proxy || !proxy->shapePhantom)
         return false;
@@ -80,98 +80,64 @@ bool Manager::SetCollisionShape(RE::bhkCharProxyController* a_controller,
     return true;
 }
 
-//works but player falls through floor halfway not sure why yet
-/*bool Manager::SetPreset(RE::Actor* a_actor, VCD::Preset a_preset)
+bool Manager::SetPreset(const RE::Actor* a_actor, const VCD::Preset& a_preset)
 {
     if (!a_actor)
         return false;
 
-    auto* playerController =
-        skyrim_cast<RE::bhkCharProxyController*>(a_actor->GetCharController());
+    auto* playerController = skyrim_cast<RE::bhkCharProxyController*>(a_actor->GetCharController());
 
     if (!playerController)
         return false;
 
-    auto& mesh =
-        VCD::Manager::GetSingleton()
-        .GetPresetMeshes()[VCD::ToUnderlying(a_preset)];
-
-    auto* sp = mesh.spCollisionObject.get();
-    if (!sp || !sp->body)
-        return false;
-
-    auto* body = sp->body.get();
-    if (!body) {
-        logger::error("Preset bhkSPCollisionObject has no body");
+    const auto* mesh = GetPresetMesh(a_preset);
+    if (!mesh) {
         return false;
     }
 
-    auto* bhkPhantom = static_cast<RE::bhkShapePhantom*>(body);
-    if (!bhkPhantom) {
-        logger::error("Preset bhkSPCollisionObject body is not bhkShapePhantom");
-        return false;
-    }
-
-    auto* referencedObject = bhkPhantom->referencedObject.get();
-    if (!referencedObject) {
-        logger::error("Preset  bhkShapePhantom has no referenced Havok object");
-        return false;
-    }
-
-    auto* simpleShapePhantom = static_cast<RE::hkpSimpleShapePhantom*>(referencedObject);
-
-    if (!simpleShapePhantom) {
-        logger::error("Preset referenced object is not hkpSimpleShapePhantom");
-        return false;
-    }
-
-    const auto* shape = simpleShapePhantom->collidable.shape;
-    if (!shape) {
-        logger::error("Preset  hkpSimpleShapePhantom has no collidable shape");
-        return false;
-    }
-
-    if (shape->type != RE::hkpShapeType::kCapsule) {
-        logger::error("Preset  shape is not capsule. shapeType=");
-        return false;
-    }
-
-    const auto* capsuleShape = static_cast<const RE::hkpCapsuleShape*>(shape);
+    const auto* capsuleShape = GetPresetShape(a_preset);
     if (!capsuleShape) {
-        logger::error("Preset failed to cast shape to hkpCapsuleShape");
         return false;
     }
 
-    return SetCollisionShape(playerController, capsuleShape);
-}*/
-
-//works but player falls through floor halfway not sure why yet
-bool Manager::SetPreset(RE::Actor* a_actor, VCD::Preset a_preset)
-{
-    if (!a_actor)
+    auto* cell = a_actor->GetParentCell();
+    if (!cell) {
         return false;
+    }
 
-    auto* playerController =
-        skyrim_cast<RE::bhkCharProxyController*>(a_actor->GetCharController());
-
-    if (!playerController)
+    auto* world = cell->GetbhkWorld();
+    if (!world) {
         return false;
+    }
 
-    auto& mesh =
-        VCD::Manager::GetSingleton()
-        .GetPresetMeshes()[VCD::ToUnderlying(a_preset)];
+    RE::BSWriteLockGuard lock(world->worldLock);
 
-    auto* sp = mesh.spCollisionObject.get();
-    if (!sp || !sp->body)
+    auto* worldCapsuleShape = FindWorldCharacterBumperShape(playerController);
+    if (!worldCapsuleShape) {
+        auto* proxy = skyrim_cast<RE::hkpCharacterProxy*>(playerController->proxy.referencedObject.get());
+        const auto* worldShape = proxy && proxy->shapePhantom ? proxy->shapePhantom->collidable.shape : nullptr;
+        logger::error("Could not find world CharacterBumper capsule for preset [{}]. worldShapeType={}", mesh->name, worldShape ? static_cast<std::uint32_t>(worldShape->type) : 0);
         return false;
+    }
 
-    auto* worldObj =
-        static_cast<RE::hkpWorldObject*>(sp->body->referencedObject.get());
+    const auto previousRadius = worldCapsuleShape->radius;
+    const auto previousHeight = worldCapsuleShape->vertexA.GetDistance3(worldCapsuleShape->vertexB);
 
-    if (!worldObj || !worldObj->collidable.shape)
-        return false;
+    worldCapsuleShape->radius = capsuleShape->radius;
+    worldCapsuleShape->vertexA = capsuleShape->vertexA;
+    worldCapsuleShape->vertexB = capsuleShape->vertexB;
 
-   return SetCollisionShape(playerController, worldObj->collidable.shape);
+    logger::info("Applied preset [{}] to world CharacterBumper capsule. translation=({}, {}, {}), scale={}, radius {} -> {}, height {} -> {}",
+        mesh->name,
+        mesh->data.bump.translation.x,
+        mesh->data.bump.translation.y,
+        mesh->data.bump.translation.z,
+        mesh->data.bump.scale,
+        previousRadius,
+        worldCapsuleShape->radius,
+        previousHeight,
+        worldCapsuleShape->vertexA.GetDistance3(worldCapsuleShape->vertexB));
+    return true;
 }
 
 
@@ -213,7 +179,7 @@ bool Manager::LoadPresetMesh(PresetMesh& a_mesh)
     }
 
 
-    auto* spCollisionObject = skyrim_cast<RE::bhkSPCollisionObject*>(collisionObject);
+    auto* spCollisionObject = netimmerse_cast<RE::bhkSPCollisionObject*>(collisionObject);
     a_mesh.foundBhkSPCollisionObject = spCollisionObject != nullptr;
 
     if (!spCollisionObject) {
@@ -229,7 +195,7 @@ bool Manager::LoadPresetMesh(PresetMesh& a_mesh)
         return false;
     }
 
-    auto* bhkPhantom = static_cast<RE::bhkShapePhantom*>(body);
+    auto* bhkPhantom = skyrim_cast<RE::bhkShapePhantom*>(body);
     if (!bhkPhantom) {
         logger::error("Preset [{}] bhkSPCollisionObject body is not bhkShapePhantom", a_mesh.name);
         return false;
@@ -241,7 +207,7 @@ bool Manager::LoadPresetMesh(PresetMesh& a_mesh)
         return false;
     }
 
-    auto* simpleShapePhantom = static_cast<RE::hkpSimpleShapePhantom*>(referencedObject);
+    auto* simpleShapePhantom = skyrim_cast<RE::hkpSimpleShapePhantom*>(referencedObject);
 
     if (!simpleShapePhantom) {
         logger::error("Preset [{}] referenced object is not hkpSimpleShapePhantom", a_mesh.name);
@@ -259,7 +225,7 @@ bool Manager::LoadPresetMesh(PresetMesh& a_mesh)
         return false;
     }
 
-    const auto* capsuleShape = static_cast<const RE::hkpCapsuleShape*>(shape);
+    const auto* capsuleShape = skyrim_cast<const RE::hkpCapsuleShape*>(shape);
     if (!capsuleShape) {
         logger::error("Preset [{}] failed to cast shape to hkpCapsuleShape", a_mesh.name);
         return false;
@@ -269,7 +235,7 @@ bool Manager::LoadPresetMesh(PresetMesh& a_mesh)
 
     a_mesh.data.capsule.radius = capsuleShape->radius;
     a_mesh.data.capsule.point1.Set(capsuleShape->vertexA);
-    a_mesh.data.capsule.point2.Set(capsuleShape->vertexA);
+    a_mesh.data.capsule.point2.Set(capsuleShape->vertexB);
     a_mesh.data.capsule.height = capsuleShape->vertexA.GetDistance3(capsuleShape->vertexB);
 
     a_mesh.data.Log();
@@ -292,12 +258,95 @@ RE::NiAVObject* Manager::FindCharacterBumper(RE::NiNode* a_root) const
     return a_root->GetObjectByName(bumperName);
 }
 
+RE::hkpCapsuleShape* Manager::FindWorldCharacterBumperShape(RE::bhkCharProxyController* a_controller) const
+{
+    if (!a_controller) {
+        return nullptr;
+    }
+
+    auto* proxy = skyrim_cast<RE::hkpCharacterProxy*>(a_controller->proxy.referencedObject.get());
+    if (!proxy || !proxy->shapePhantom) {
+        return nullptr;
+    }
+
+    auto* shape = const_cast<RE::hkpShape*>(proxy->shapePhantom->collidable.shape);
+    return FindCharacterBumperShape(shape, RE::HK_INVALID_SHAPE_KEY);
+}
+
+RE::hkpCapsuleShape* Manager::FindCharacterBumperShape(RE::hkpShape* a_shape, const RE::hkpShapeKey& a_key) const
+{
+    if (!a_shape) {
+        return nullptr;
+    }
+
+    if (a_shape->type == RE::hkpShapeType::kCapsule && IsCharacterBumperShape(a_shape, a_key)) {
+        return skyrim_cast<RE::hkpCapsuleShape*>(a_shape);
+    }
+
+    if (a_shape->type == RE::hkpShapeType::kList) {
+        auto* listShape = skyrim_cast<RE::hkpListShape*>(a_shape);
+        if (!listShape) {
+            return nullptr;
+        }
+
+        for (auto& childInfo : listShape->childInfo) {
+            auto* childShape = const_cast<RE::hkpShape*>(childInfo.shape);
+            if (childShape && childShape->type == RE::hkpShapeType::kCapsule && IsCharacterBumperShape(childShape, RE::HK_INVALID_SHAPE_KEY)) {
+                return skyrim_cast<RE::hkpCapsuleShape*>(childShape);
+            }
+
+            if (auto* bumperShape = FindCharacterBumperShape(childShape, RE::HK_INVALID_SHAPE_KEY)) {
+                return bumperShape;
+            }
+        }
+
+        return nullptr;
+    }
+
+    const auto* container = a_shape->GetContainer();
+    if (!container) {
+        return nullptr;
+    }
+
+    for (auto key = container->GetFirstKey(); key != RE::HK_INVALID_SHAPE_KEY; key = container->GetNextKey(key)) {
+        RE::hkpShapeBuffer buffer{};
+        auto* childShape = const_cast<RE::hkpShape*>(container->GetChildShape(key, buffer));
+        if (childShape && childShape->type == RE::hkpShapeType::kCapsule && IsCharacterBumperShape(a_shape, key)) {
+            return skyrim_cast<RE::hkpCapsuleShape*>(childShape);
+        }
+
+        if (auto* bumperShape = FindCharacterBumperShape(childShape, key)) {
+            return bumperShape;
+        }
+    }
+
+    return nullptr;
+}
+
+bool Manager::IsCharacterBumperShape(const RE::hkpShape* a_shape, const RE::hkpShapeKey& a_key) const
+{
+    if (!a_shape || !a_shape->userData) {
+        return false;
+    }
+
+    if (a_shape->userData->materialID == RE::MATERIAL_ID::kCharacterBumper) {
+        return true;
+    }
+
+    if (a_key != RE::HK_INVALID_SHAPE_KEY && a_shape->userData->GetMaterialID(a_key) == RE::MATERIAL_ID::kCharacterBumper) {
+        return true;
+    }
+
+    return false;
+}
+
 bool Manager::AreAllPresetMeshesLoaded() const
 {
     for (const auto& presetMesh : presetMeshes) {
         if (!presetMesh.loaded ||
             !presetMesh.foundCharacterBumper ||
-            !presetMesh.foundBhkSPCollisionObject) {
+            !presetMesh.foundBhkSPCollisionObject ||
+            !presetMesh.foundCapsuleShape) {
             return false;
         }
     }
@@ -311,7 +360,8 @@ std::size_t Manager::GetLoadedPresetCount() const
     for (const auto& presetMesh : presetMeshes) {
         if (presetMesh.loaded &&
             presetMesh.foundCharacterBumper &&
-            presetMesh.foundBhkSPCollisionObject) {
+            presetMesh.foundBhkSPCollisionObject &&
+            presetMesh.foundCapsuleShape) {
             ++count;
         }
     }
@@ -322,4 +372,54 @@ std::size_t Manager::GetLoadedPresetCount() const
 const std::array<PresetMesh, 4>& Manager::GetPresetMeshes() const noexcept
 {
     return presetMeshes;
+}
+
+const PresetMesh* Manager::GetPresetMesh(const VCD::Preset& a_preset) const
+{
+    const auto index = static_cast<std::size_t>(ToUnderlying(a_preset));
+    if (index >= presetMeshes.size()) {
+        return nullptr;
+    }
+
+    return &presetMeshes[index];
+}
+
+RE::hkpCapsuleShape* Manager::GetPresetShape(const VCD::Preset& a_preset)
+{
+    return const_cast<RE::hkpCapsuleShape*>(static_cast<const Manager*>(this)->GetPresetShape(a_preset));
+}
+
+const RE::hkpCapsuleShape* Manager::GetPresetShape(const VCD::Preset& a_preset) const
+{
+    const auto* mesh = GetPresetMesh(a_preset);
+    if (!mesh || !mesh->loaded || !mesh->foundCapsuleShape) {
+        return nullptr;
+    }
+
+    const auto* spCollisionObject = mesh->spCollisionObject.get();
+    if (!spCollisionObject || !spCollisionObject->body) {
+        return nullptr;
+    }
+
+    const auto* bhkPhantom = static_cast<const RE::bhkShapePhantom*>(spCollisionObject->body.get());
+    if (!bhkPhantom) {
+        return nullptr;
+    }
+
+    const auto* referencedObject = bhkPhantom->referencedObject.get();
+    if (!referencedObject) {
+        return nullptr;
+    }
+
+    const auto* simpleShapePhantom = skyrim_cast<const RE::hkpSimpleShapePhantom*>(referencedObject);
+    if (!simpleShapePhantom) {
+        return nullptr;
+    }
+
+    const auto* shape = simpleShapePhantom->collidable.shape;
+    if (!shape || shape->type != RE::hkpShapeType::kCapsule) {
+        return nullptr;
+    }
+
+    return skyrim_cast<const RE::hkpCapsuleShape*>(shape);
 }
