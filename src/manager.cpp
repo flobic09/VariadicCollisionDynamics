@@ -1,26 +1,19 @@
 #include "manager.hpp"
 #include "config.hpp"
 #include "logger.hpp"
-#include "RE/Skyrim.h"
-#include "SKSE/SKSE.h"
 #include "TrueHUDAPI.h"
 #include "globals.hpp"
+#include "helper.hpp"
+#include "plugin.hpp"
 
 #include <type_traits>
 
 using namespace VCD;
 
-namespace {
-    RE::hkVector4 ToHkVector(const Vec3& a_vec)
-    {
-        return RE::hkVector4(a_vec.x, a_vec.y, a_vec.z, 0.0f);
-    }
-}
-
 Manager& Manager::GetSingleton()
 {
-    static Manager singleton;
-    return singleton;
+	static Manager singleton;
+	return singleton;
 }
 
 Manager::Manager() :
@@ -99,11 +92,23 @@ bool Manager::SetPreset(const RE::Actor* a_actor, const VCD::Preset& a_preset)
     }
 
     const auto previousRadius = worldCapsuleShape->radius;
+    const auto previousVertexA = worldCapsuleShape->vertexA;
+    const auto previousVertexB = worldCapsuleShape->vertexB;
     const auto previousHeight = worldCapsuleShape->vertexA.GetDistance3(worldCapsuleShape->vertexB);
+    const auto previousCenter = (ToNiPoint3(previousVertexA) + ToNiPoint3(previousVertexB)) * 0.5F;
 
-    worldCapsuleShape->radius = presetConfig->data.capsule.radius;
-    worldCapsuleShape->vertexA = ToHkVector(presetConfig->data.capsule.point1);
-    worldCapsuleShape->vertexB = ToHkVector(presetConfig->data.capsule.point2);
+    const auto mappedRadius = presetConfig->data.capsule.radius;
+    const auto mappedHeight = presetConfig->data.capsule.height;
+    const auto mappedHalfHeight = mappedHeight * 0.5F;
+    const auto mappedX = presetConfig->data.bump.translation.x * RE::bhkWorld::GetWorldScale();
+    const auto mappedY = presetConfig->data.bump.translation.y * RE::bhkWorld::GetWorldScale();
+    const auto mappedCenter = RE::NiPoint3(mappedX, mappedY, previousCenter.z);
+    const auto mappedVertexA = ToHkVector(RE::NiPoint3(mappedCenter.x, mappedCenter.y, mappedCenter.z + mappedHalfHeight));
+    const auto mappedVertexB = ToHkVector(RE::NiPoint3(mappedCenter.x, mappedCenter.y, mappedCenter.z - mappedHalfHeight));
+
+    worldCapsuleShape->radius = mappedRadius;
+    worldCapsuleShape->vertexA = mappedVertexA;
+    worldCapsuleShape->vertexB = mappedVertexB;
 
     logger::info("Applied preset [{}] to world CharacterBumper capsule. translation=({}, {}, {}), scale={}, radius {} -> {}, height {} -> {}",
         presetConfig->name,
@@ -262,25 +267,19 @@ void Manager::DrawPlayerBumper()
     if (!world)
         return;
     RE::BSReadLockGuard lock(world->worldLock);
+
     auto* bumper = VCD::Manager::GetSingleton().FindWorldCharacterBumperShape(charController);
     if (!bumper)
         return;
 
-    auto hkToNi = [](const RE::hkVector4& v) {
-        return RE::NiPoint3(v.quad.m128_f32[0], v.quad.m128_f32[1], v.quad.m128_f32[2]);
-        };
-
-    //scale vertex and bumper  everything by hk scale for collisions
-    constexpr float hkScale = 70.f; 
-
     RE::hkVector4 controllerPosHK;
     charController->GetPosition(controllerPosHK, false);
-    RE::NiPoint3 controllerPos = hkToNi(controllerPosHK) * hkScale;
-    RE::NiPoint3 aLocal = hkToNi(bumper->vertexA) * hkScale;
-    RE::NiPoint3 bLocal = hkToNi(bumper->vertexB) * hkScale;
+    RE::NiPoint3 controllerPos = ToNiPoint3(controllerPosHK) * GetPresetScale();
+    RE::NiPoint3 aLocal = ToNiPoint3(bumper->vertexA) * GetPresetScale();
+    RE::NiPoint3 bLocal = ToNiPoint3(bumper->vertexB) * GetPresetScale();
 
     
-    float radius = bumper->radius * hkScale;
+    float radius = bumper->radius * GetPresetScale();
     float yaw = -player->data.angle.z;
     float c = std::cos(yaw);
     float s = std::sin(yaw);
