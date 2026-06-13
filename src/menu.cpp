@@ -69,6 +69,31 @@ namespace UI {
             editor.current = presetConfig->data;
         }
 
+        bool RefreshPresetEditor()
+        {
+            auto& editor = GetPresetEditorState();
+            if (!editor.open) {
+                return false;
+            }
+
+            auto* presetConfig = VCD::Manager::GetSingleton().GetPresetConfig(editor.preset);
+            if (!presetConfig) {
+                editor.open = false;
+                return false;
+            }
+
+            editor.defaults = presetConfig->data;
+            editor.current = presetConfig->data;
+            return true;
+        }
+
+        void PreviewPreset(const VCD::Preset& a_preset)
+        {
+            if (const auto* player = RE::PlayerCharacter::GetSingleton()) {
+                logger::info("Preset preview result: {}", VCD::Manager::GetSingleton().SetPreset(player, a_preset));
+            }
+        }
+
         void RenderStateRow(const char* a_label, VCD::Preset& a_preset)
         {
             GUI::TableNextRow();
@@ -77,9 +102,7 @@ namespace UI {
             GUI::TableNextColumn();
             GUI::SetNextItemWidth(180.0F);
             if (PresetCombo((std::string("##") + a_label).c_str(), a_preset)) {
-                if (auto* player = RE::PlayerCharacter::GetSingleton()) {
-                    Dynamics::ApplyPreset(player, a_preset, "preview");
-                }
+                PreviewPreset(a_preset);
             }
             GUI::SameLine();
             GUI::PushStyleColor(GUI::ImGuiCol_ButtonHovered, Color::kEditHover);
@@ -223,6 +246,10 @@ namespace UI {
         if (CTAButton("Default", changed)) {
             Settings::GetSettings() = defaults;
             Settings::ApplySettings(Settings::GetSettings());
+
+            if (DynamicsPanel::RefreshPresetEditor()) {
+                DynamicsPanel::PreviewPreset(DynamicsPanel::GetPresetEditorState().preset);
+            }
         }
         Tooltip("Reset draw collision, state mappings, and preset overrides to defaults.");
 
