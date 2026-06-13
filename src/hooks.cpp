@@ -4,6 +4,7 @@
 #include "manager.hpp"
 #include "dynamics.hpp"
 #include "settings.hpp"
+#include "drawLines.hpp"
 
 using namespace Hook; 
 
@@ -18,10 +19,11 @@ void PlayerUpdate::thunk(RE::PlayerCharacter* player, float delta) {
 
 	Dynamics::Update(player);
 
-	if (Settings::GetSettings().drawCollision) {
-		VCD::Manager::GetSingleton().DrawPlayerBumper();
-	}
 
+
+	if (Settings::GetSettings().drawCollision) {
+		DebugAPI_IMPL::DebugAPI_Ext::DrawPlayerBumper();
+	}
 }
 
 void PlayerUpdate::Install()

@@ -6,6 +6,7 @@
 #include "manager.hpp"
 #include "preset.hpp"
 #include "settings.hpp"
+#include <CLibUtilsQTR/DrawDebug.hpp>
 
 #include <iterator>
 #include <string>
@@ -216,7 +217,13 @@ namespace UI {
         auto& config = Dynamics::GetConfig();
         auto& settings = Settings::GetSettings();
 
-        GUI::Checkbox("Draw Bump Collision", &settings.drawCollision);
+        if (GUI::Checkbox("Draw Bump Collision", &settings.drawCollision)) {
+            // have to manually clear lines or they stay on screen
+            auto api = DebugAPI_IMPL::DebugAPI::GetSingleton(); 
+            api->LinesToDraw.clear();
+            api->Update(); 
+        };
+
         GUI::Separator();
 
         if (GUI::BeginTable("DynamicsPresetTable", 2)) {

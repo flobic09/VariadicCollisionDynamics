@@ -1,10 +1,9 @@
 #include "manager.hpp"
 #include "config.hpp"
 #include "logger.hpp"
-#include "TrueHUDAPI.h"
-#include "globals.hpp"
 #include "helper.hpp"
 #include "plugin.hpp"
+#include "drawLines.hpp"
 
 #include <type_traits>
 
@@ -279,50 +278,4 @@ bool Manager::RestorePresetDefault(const VCD::Preset& a_preset)
     return true;
 }
 
-void Manager::DrawPlayerBumper()
-{
-    if (!globals::g_trueHUD)
-        return;
-    auto player = RE::PlayerCharacter::GetSingleton();
-    if (!player)
-        return;
-    auto charController = skyrim_cast<RE::bhkCharProxyController*>(player->GetCharController());
-    if (!charController)
-        return;
-    auto cell = player->GetParentCell();
-    if (!cell)
-        return;
-    auto world = cell->GetbhkWorld();
-    if (!world)
-        return;
-    RE::BSReadLockGuard lock(world->worldLock);
-
-    auto* bumper = VCD::Manager::GetSingleton().FindWorldCharacterBumperShape(charController);
-    if (!bumper)
-        return;
-
-    RE::hkVector4 controllerPosHK;
-    charController->GetPosition(controllerPosHK, false);
-    RE::NiPoint3 controllerPos = ToNiPoint3(controllerPosHK) * GetPresetScale();
-    RE::NiPoint3 aLocal = ToNiPoint3(bumper->vertexA) * GetPresetScale();
-    RE::NiPoint3 bLocal = ToNiPoint3(bumper->vertexB) * GetPresetScale();
-
-    
-    float radius = bumper->radius * GetPresetScale();
-    float yaw = -player->data.angle.z;
-    float c = std::cos(yaw);
-    float s = std::sin(yaw);
-
-
-    // its a cylinder or capsule shape so idk if we need to even rotate but mabye helpfull for future shapes if needed
-    auto rotate = [&](const RE::NiPoint3& p) {
-        return RE::NiPoint3(p.x * c - p.y * s, p.x * s + p.y * c, p.z);
-        };
-
-    RE::NiPoint3 a = rotate(aLocal) + controllerPos;
-    RE::NiPoint3 b = rotate(bLocal) + controllerPos;
-
-    //I can move this func to qtr so we dont need true hud 
-    globals::g_trueHUD->DrawCapsule(a, b, radius, 0.f, 0xFF4087FF, 1.f);
-}
 

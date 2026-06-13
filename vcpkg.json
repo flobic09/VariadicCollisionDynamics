@@ -13,7 +13,8 @@
     "directxtk",
     "nlohmann-json",
     "boost-stl-interfaces",
-    "clib-util"
+    "clib-util",
+    "clib-utils-qtr"
   ],
   "builtin-baseline": "78b61582c9e093fda56a01ebb654be15a0033897"
 }

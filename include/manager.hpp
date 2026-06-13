@@ -33,8 +33,6 @@ namespace VCD {
 
         bool RestorePresetDefault(const VCD::Preset& a_preset);
 
-        void DrawPlayerBumper(); 
-
         RE::hkpCapsuleShape* FindWorldCharacterBumperShape(RE::bhkCharProxyController* a_controller) const;
 
     private:

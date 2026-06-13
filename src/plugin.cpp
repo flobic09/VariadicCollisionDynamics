@@ -6,8 +6,6 @@
 #include "manager.hpp"
 #include "dynamics.hpp"
 #include "settings.hpp"
-#include "globals.hpp"
-#include "TrueHUDAPI.h"
 
 static void MessageHandler(SKSE::MessagingInterface::Message* msg) {
     switch (msg->type) {
@@ -62,16 +60,6 @@ SKSEPluginLoad(const SKSE::LoadInterface* skse)
     UI::Register(); 
 
     Hook::PlayerUpdate::Install();
-
-    auto* api = TRUEHUD_API::RequestPluginAPI(TRUEHUD_API::InterfaceVersion::V4);
-
-    if (!api) {
-        logger::error("TrueHUD API failed to initialize (V4 not available)");
-    }
-    else {
-        globals::g_trueHUD = static_cast<TRUEHUD_API::IVTrueHUD4*>(api);
-        logger::info("TrueHUD API acquired successfully");
-    }
 
     return true;
 }
