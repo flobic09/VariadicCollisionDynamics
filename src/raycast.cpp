@@ -1,4 +1,5 @@
 #include "raycast.hpp"
+#include <CLibUtilsQTR/DrawDebug.hpp>
 
 bool raycast::castRay(RE::bhkWorld* world, RE::NiPoint3 start, RE::NiPoint3 end, RE::COL_LAYER collisionFilter)
 {
@@ -39,11 +40,18 @@ bool raycast::castRay(RE::bhkWorld* world, RE::NiPoint3 start, RE::NiPoint3 end,
 		layer != RE::COL_LAYER::kGround)
 		return false;
 
-	// get ni node of what we hit if we wanted more info on what we hit 
-	/*
+	// debugging
+	float totalDistance = start.GetDistance(end);
+	float hitDistance = totalDistance * pickData.rayOutput.hitFraction;
+
+	// get mesh of what we hit (I think down to the tri shape that we hit so section of a mesh
 	auto* niObj = RE::TES::GetSingleton()->Pick(pickData);
 	if (!niObj || niObj->name.empty())
-		return false;*/
+		return false;
+	logger::info(
+		"mesh above player blocking standing: {} (distance {:.2f})",
+		niObj->name.c_str(),
+		hitDistance);
 	return true; 
 }
 
@@ -73,6 +81,8 @@ bool raycast::castRay(RE::bhkWorld* world, RE::NiPoint3 start, RE::NiPoint3 end,
 	 // see if anything blocking
 	 bool canNotStandUp = raycast::castRay(world, start, end, RE::COL_LAYER::kLOS);
 
-	 logger::debug("canStandUp ray blocked: {}", canNotStandUp);
+	 RE::NiColorA rayColor = canNotStandUp ? RE::NiColorA{ 1.0f, 0.0f, 0.0f, 1.0f } : RE::NiColorA{ 0.0f, 1.0f, 0.0f, 1.0f };
+	 DebugAPI_IMPL::DebugAPI::GetSingleton()->DrawLineForMS(start, end, 100, rayColor, 2.0f);
+
 	 return !canNotStandUp;
 }
