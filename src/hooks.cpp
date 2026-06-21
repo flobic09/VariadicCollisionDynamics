@@ -6,6 +6,7 @@
 #include "dynamics.hpp"
 #include "settings.hpp"
 #include "raycast.hpp"
+#include "globals.h"
 
 #include <CLibUtilsQTR/DrawDebug.hpp>
 
@@ -48,15 +49,16 @@ void PlayerUpdate::Install()
 	logger::info("Player update hook installed");
 }
 
-bool SneakHandlerCanProcess::thunk(RE::InputEvent* a_event) {
+bool SneakHandlerCanProcess::thunk(RE::SneakHandler* a_this, RE::InputEvent* a_event) {
+
+	if (!a_this|| !a_event) return func(a_this, a_event);
 	
 	if (!raycast::canStandUp()) {
+		logger::debug("can stand = {} object is blocking player from standing", globals::canstand);
 		return false; 
 	}
 
-	else {
-		return func(a_event);
-	} 
+	return func(a_this, a_event);
 }
 
 void SneakHandlerCanProcess::Install()
