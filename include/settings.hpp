@@ -2,6 +2,7 @@
 
 #include "plugin.hpp"
 #include "helper.hpp"
+#include "manager.hpp"
 #include "settings_def.hpp"
 
 #include "nlohmann/json.hpp"
@@ -18,27 +19,13 @@ namespace Settings {
 
 	inline VCD::Preset PresetFromString(const std::string& a_preset)
 	{
-		if (a_preset == "PersonalSpace" || a_preset == "Personal Space") {
-			return VCD::Preset::kPersonalSpace;
+		const auto* presetConfig = VCD::Manager::GetSingleton().GetPresetConfig(a_preset);
+		if (!presetConfig) {
+			logger::warn("Preset {} is unavailable; using Vanilla.", a_preset);
+			return VCD::Preset::kVanilla;
 		}
 
-		if (a_preset == "Compact") {
-			return VCD::Preset::kCompact;
-		}
-
-		if (a_preset == "Bulky") {
-			return VCD::Preset::kBulky;
-		}
-
-		if (a_preset == "Werewolf") {
-			return VCD::Preset::kWerewolf;
-		}
-
-		if (a_preset == "VampireLord" || a_preset == "Vampire Lord") {
-			return VCD::Preset::kVampireLord;
-		}
-
-		return VCD::Preset::kVanillaLike;
+		return presetConfig->preset;
 	}
 
 	inline void getBool(const nlohmann::json& a_json, const char* a_key, bool& a_value)
@@ -88,22 +75,7 @@ namespace Settings {
 
 	inline const char* PresetToString(const VCD::Preset& a_preset)
 	{
-		switch (a_preset) {
-		case VCD::Preset::kVanillaLike:
-			return "VanillaLike";
-		case VCD::Preset::kPersonalSpace:
-			return "PersonalSpace";
-		case VCD::Preset::kCompact:
-			return "Compact";
-		case VCD::Preset::kBulky:
-			return "Bulky";
-		case VCD::Preset::kWerewolf:
-			return "Werewolf";
-		case VCD::Preset::kVampireLord:
-			return "VampireLord";
-		default:
-			return "VanillaLike";
-		}
+		return VCD::PresetKey(a_preset);
 	}
 
 	inline VCDSettings& GetSettings()
@@ -164,18 +136,26 @@ namespace Settings {
 
 	bool IsToolsDirty();
 
+	bool IsPoseFixesDirty();
+
 	bool IsDynamicsDefault();
 
 	bool IsToolsDefault();
 
+	bool IsPoseFixesDefault();
+
 	void ResetDynamics();
 
 	void ResetTools();
+
+	void ResetPoseFixes();
 
 	bool Load();
 
 	bool Save();
 
 	bool SaveTools();
+
+	bool SavePoseFixes();
 
 }

@@ -3,13 +3,22 @@
 #include "plugin.hpp"
 
 #include <array>
-#include <filesystem>
 #include <string>
+#include <filesystem>
+#include <string_view>
 #include <type_traits>
 
 namespace VCD {
 
     namespace fs = std::filesystem;
+
+    struct SittingFlags
+    {
+        bool isSitting{ false };
+        bool isChildSittingOnKnees{ false };
+
+        bool operator==(const SittingFlags&) const = default;
+    };
 
     inline std::string ToUTF8(const fs::path& a_path)
     {
@@ -56,6 +65,52 @@ namespace VCD {
     inline RE::NiPoint3 RotatePoint(const RE::NiPoint3& a_point, const float& a_cos, const float& a_sin)
     {
         return RE::NiPoint3(a_point.x * a_cos - a_point.y * a_sin, a_point.x * a_sin + a_point.y * a_cos, a_point.z);
+    }
+
+    inline char ToLowerASCII(const char& a_char)
+    {
+        return static_cast<char>(std::tolower(a_char));
+    }
+
+    inline bool ContainsInsensitive(const std::string_view& a_text, const std::string_view& a_pattern)
+    {
+        if (a_pattern.empty() || a_pattern.size() > a_text.size()) {
+            return false;
+        }
+
+        const auto first = ToLowerASCII(a_pattern.front());
+        const auto maxIndex = a_text.size() - a_pattern.size();
+        for (std::size_t i = 0; i <= maxIndex; ++i) {
+            if (ToLowerASCII(a_text[i]) != first) {
+                continue;
+            }
+
+            std::size_t j = 1;
+            for (; j < a_pattern.size(); ++j) {
+                if (ToLowerASCII(a_text[i + j]) != ToLowerASCII(a_pattern[j])) {
+                    break;
+                }
+            }
+
+            if (j == a_pattern.size()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    inline const char* GetOccupiedFurnitureName(const RE::Actor* a_actor)
+    {
+        if (!a_actor) {
+            return "";
+        }
+
+        const auto furnitureHandle = const_cast<RE::Actor*>(a_actor)->GetOccupiedFurniture();
+        const auto furniturePtr = furnitureHandle.get();
+        const auto* furniture = furniturePtr.get();
+        const auto* name = furniture ? furniture->GetName() : nullptr;
+        return name ? name : "";
     }
 
 }

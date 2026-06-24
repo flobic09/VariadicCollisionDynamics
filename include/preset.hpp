@@ -6,6 +6,8 @@
 
 #include <string_view>
 #include <string>
+#include <array>
+#include <vector>
 #include <cmath>
 #include <cstddef>
 
@@ -22,49 +24,39 @@
     S(capsule.point2.y) \
     S(capsule.point2.z)
 
+#define FOREACH_PRESET(S) \
+    S(Vanilla, "Vanilla") \
+    S(PersonalSpace, "Personal Space") \
+    S(Compact, "Compact") \
+    S(Bulky, "Bulky") \
+    S(Werewolf, "Werewolf") \
+    S(VampireLord, "Vampire Lord") \
+    S(NPCNeutral, "NPC Neutral") \
+    S(NPCCombat, "NPC Combat") \
+    S(GuardNeutral, "Guard Neutral") \
+    S(GuardCombat, "Guard Combat")
+
 namespace VCD {
 
     inline constexpr std::string_view kPresetDir = "presets";
 
     enum class Preset
     {
-        kVanillaLike,
-        kPersonalSpace,
-        kCompact,
-        kBulky,
-        kWerewolf,
-        kVampireLord
+#define PRESET_ENUM(Name, DisplayName) k##Name,
+        FOREACH_PRESET(PRESET_ENUM)
+        kTotal
     };
 
-    inline constexpr size_t kPresetCount = 6;
+    inline constexpr size_t kBuiltInPresetCount = static_cast<size_t>(Preset::kTotal);
 
-    inline constexpr const char* PresetName(const Preset& a_preset)
-    {
-        switch (a_preset) {
-        case Preset::kVanillaLike:
-            return "Vanilla-like";
-        case Preset::kPersonalSpace:
-            return "Personal Space";
-        case Preset::kCompact:
-            return "Compact";
-        case Preset::kBulky:
-            return "Bulky";
-        case Preset::kWerewolf:
-            return "Werewolf";
-        case Preset::kVampireLord:
-            return "Vampire Lord";
-        default:
-            return "Unknown";
-        }
-    }
+#define PRESET_KEY_ENTRY(Name, DisplayName) #Name,
+    inline constexpr std::array<const char*, kBuiltInPresetCount> kPresetKeys = {
+        FOREACH_PRESET(PRESET_KEY_ENTRY)
+    };
 
-    inline constexpr const char* kPresetNames[] = {
-        PresetName(Preset::kVanillaLike),
-        PresetName(Preset::kPersonalSpace),
-        PresetName(Preset::kCompact),
-        PresetName(Preset::kBulky),
-        PresetName(Preset::kWerewolf),
-        PresetName(Preset::kVampireLord)
+#define PRESET_NAME_ENTRY(Name, DisplayName) DisplayName,
+    inline constexpr std::array<const char*, kBuiltInPresetCount> kPresetNames = {
+        FOREACH_PRESET(PRESET_NAME_ENTRY)
     };
 
     struct Vec3
@@ -132,13 +124,36 @@ namespace VCD {
     struct PresetConfig
     {
         Preset preset{};
+        std::string key{};
         std::string name{};
-        std::string configPath{};
 
         CollisionData data;
 
         bool loaded{ false };
+        bool builtIn{ false };
     };
+
+    inline void InitializePresetConfigs(std::vector<PresetConfig>& a_presets)
+    {
+        a_presets.clear();
+        a_presets.reserve(kBuiltInPresetCount);
+        for (size_t i = 0; i < kBuiltInPresetCount; ++i) {
+            a_presets.push_back({
+                static_cast<Preset>(i),
+                kPresetKeys[i],
+                kPresetNames[i],
+                {},
+                false,
+                true
+            });
+        }
+    }
 
     
 }
+
+#undef PRESET_ENUM
+#undef PRESET_KEY_ENTRY
+#undef PRESET_NAME_ENTRY
+#undef COLLISION_FIELD2LOG
+#undef COLLISION_FIELD2EQ

@@ -17,28 +17,20 @@ static void MessageHandler(SKSE::MessagingInterface::Message* msg) {
     {
         break;
     }
-    case SKSE::MessagingInterface::kPreLoadGame:
-    {
-        break;
-    }
     case SKSE::MessagingInterface::kPostLoadGame:
-    {
-        break;
-    }
     case SKSE::MessagingInterface::kNewGame:
     {
-
+        // Skyrim resets loaded preset on loading game,
+        // Thus, we reapply after a short time.
+        Dynamics::ClearRuntimeState();
+        Dynamics::SchedulePostLoadApply();
         break;
     }
     case SKSE::MessagingInterface::kDataLoaded:
     {
         VCD::Manager::GetSingleton().LoadPresets();
-        if (VCD::Manager::GetSingleton().AreAllPresetsLoaded()) {
-            Settings::Load();
-        }
-		else {
-            logger::error("Presets are not loaded. Mod is disabled.");
-        }
+
+        Settings::Load();
 
         break;
     }

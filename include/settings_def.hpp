@@ -4,6 +4,7 @@
 
 #include <array>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #define FOREACH_TOOL_BOOL_SETTING(S) \
@@ -14,9 +15,15 @@
 #define FOREACH_DYNAMICS_BOOL_SETTING(S) \
 	S(enableNPCDynamics, false)
 
+#define FOREACH_POSE_FIX_BOOL_SETTING(S) \
+	S(enablePoseFixes, true) \
+	S(fixPlayerSitting, true) \
+	S(fixNPCSitting, true)
+
 #define FOREACH_BOOL_SETTING(S) \
 	FOREACH_TOOL_BOOL_SETTING(S) \
-	FOREACH_DYNAMICS_BOOL_SETTING(S)
+	FOREACH_DYNAMICS_BOOL_SETTING(S) \
+	FOREACH_POSE_FIX_BOOL_SETTING(S)
 
 #define FOREACH_FLOAT_SETTING(S) \
 	S(drawLineThickness, 1.2F) \
@@ -39,13 +46,13 @@
 	S(combat, VCD::Preset::kBulky) \
 	S(werewolf, VCD::Preset::kWerewolf) \
 	S(vampireLord, VCD::Preset::kVampireLord) \
-	S(neutral, VCD::Preset::kVanillaLike)
+	S(neutral, VCD::Preset::kVanilla)
 
 #define FOREACH_NPC_PRESET_SETTING(S) \
-	S(npcNeutral, VCD::Preset::kVanillaLike) \
-	S(npcCombat, VCD::Preset::kPersonalSpace) \
-	S(guardNeutral, VCD::Preset::kCompact) \
-	S(guardCombat, VCD::Preset::kBulky)
+	S(npcNeutral, VCD::Preset::kNPCNeutral) \
+	S(npcCombat, VCD::Preset::kNPCCombat) \
+	S(guardNeutral, VCD::Preset::kGuardNeutral) \
+	S(guardCombat, VCD::Preset::kGuardCombat)
 
 #define FOREACH_PRESET_SETTING(S) \
 	FOREACH_PLAYER_PRESET_SETTING(S) \
@@ -71,7 +78,7 @@ namespace Settings {
 		{
 			RE::FormID formID{ 0 };
 			std::string name{};
-			VCD::Preset preset{ VCD::Preset::kVanillaLike };
+			VCD::Preset preset{ VCD::Preset::kVanilla };
 			VCD::CollisionData data{};
 		};
 
@@ -81,8 +88,8 @@ namespace Settings {
 		FOREACH_PRESET_SETTING(PRESET2DEF);
 		FOREACH_COLOR_SETTING(COLOR2DEF);
 
-		std::array<PresetOverride, VCD::kPresetCount> presets{};
-		std::array<PresetOverride, VCD::kPresetCount> npcPresets{};
+		std::unordered_map<std::string, PresetOverride> presets{};
+		std::unordered_map<std::string, PresetOverride> npcPresets{};
 
 		std::vector<NPCActorPresetOverride> npcActorPresets{};
 	};

@@ -53,7 +53,7 @@ namespace UI {
         GUI::SliderInt("Nearby Actor Limit", &settings.nearbyActorDrawLimit, 1, 64);
 
         GUI::Checkbox("Auto Draw While Editing", &settings.autoDrawPreview);
-        Tooltip("Temporarily enables drawing when preset sliders are changed, then restores the previous draw setting when the editor closes.");
+        WrappedTooltip("Temporarily enables drawing when preset sliders are changed, then restores the previous draw setting when the editor closes.");
 
         GUI::SetNextItemWidth(260.0F);
         GUI::ColorEdit4("Player line Color", settings.drawColor.data(), GUI::ImGuiColorEditFlags_DisplayRGB | GUI::ImGuiColorEditFlags_AlphaBar);

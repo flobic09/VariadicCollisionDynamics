@@ -1,48 +1,23 @@
 #include "manager.hpp"
 #include "config.hpp"
+#include "havok.hpp"
 #include "logger.hpp"
 #include "helper.hpp"
 #include "plugin.hpp"
+#include "posefixes.hpp"
 
+#include <algorithm>
+#include <cctype>
+#include <cmath>
 #include <type_traits>
 
 using namespace VCD;
 
-Manager& Manager::GetSingleton()
+Manager::Manager()
 {
-	static Manager singleton;
-	return singleton;
-}
-
-Manager::Manager() :
-    presetConfigs{ {
-        PresetConfig{
-            Preset::kVanillaLike,
-            PresetName(Preset::kVanillaLike)
-        },
-        PresetConfig{
-            Preset::kPersonalSpace,
-            PresetName(Preset::kPersonalSpace)
-        },
-        PresetConfig{
-            Preset::kCompact,
-            PresetName(Preset::kCompact)
-        },
-        PresetConfig{
-            Preset::kBulky,
-            PresetName(Preset::kBulky)
-        },
-        PresetConfig{
-            Preset::kWerewolf,
-            PresetName(Preset::kWerewolf)
-        },
-        PresetConfig{
-            Preset::kVampireLord,
-            PresetName(Preset::kVampireLord)
-        }
-    } }
-{
+    InitializePresetConfigs(presetConfigs);
     defaultPresetConfigs = presetConfigs;
+    RebuildPresetIndex();
 }
 
 void Manager::LoadPresets()
@@ -54,28 +29,39 @@ void Manager::LoadPresets()
     LoadPresetConfigurations(presetConfigs);
 
     defaultPresetConfigs = presetConfigs;
+    RebuildPresetIndex();
 }
 
 void Manager::ClearLoadedPresets()
 {
-    for (auto& presetConfig : presetConfigs) {
-        presetConfig.data = {};
-        presetConfig.loaded = false;
-        presetConfig.configPath = {};
-    }
+    InitializePresetConfigs(presetConfigs);
 }
 
-bool Manager::SetPreset(const RE::Actor* a_actor, const VCD::Preset& a_preset, const bool& a_log)
+void Manager::ClearRuntimeState()
+{
+    bumperAnchorStates.clear();
+    convexShapeStates.clear();
+    actorStates.clear();
+}
+
+void Manager::ClearActorRuntimeState(const RE::FormID& a_formID)
+{
+    bumperAnchorStates.erase(a_formID);
+    convexShapeStates.erase(a_formID);
+    actorStates.erase(a_formID);
+}
+
+bool Manager::SetPreset(const RE::Actor* a_actor, const Preset& a_preset, const SittingFlags& a_sittingFlags, const bool& a_log)
 {
     const auto* presetConfig = GetPresetConfig(a_preset);
     if (!presetConfig) {
         return false;
     }
 
-    return SetCollisionData(a_actor, presetConfig->data, a_preset, presetConfig->name.c_str(), a_log);
+    return SetCollisionData(a_actor, presetConfig->data, a_preset, presetConfig->name.c_str(), a_sittingFlags, a_log);
 }
 
-bool Manager::SetCollisionData(const RE::Actor* a_actor, const VCD::CollisionData& a_data, const VCD::Preset& a_anchorPreset, const char* a_name, const bool& a_log)
+bool Manager::FixSittingPose(const RE::Actor* a_actor, const SittingFlags& a_sittingFlags, const bool& a_log)
 {
     ActorBumperContext context{};
     if (!GetActorBumperContext(a_actor, context, a_log)) {
@@ -84,82 +70,53 @@ bool Manager::SetCollisionData(const RE::Actor* a_actor, const VCD::CollisionDat
 
     RE::BSWriteLockGuard lock(context.world->worldLock);
 
-    auto* worldCapsuleShape = FindWorldCharacterBumperShape(context.controller);
-    if (!worldCapsuleShape) {
-        if (a_log) {
-            logger::error("Could not apply preset [{}]. CharacterBumper capsule unavailable", a_name ? a_name : "Unknown");
-        }
+    CharacterBumperShape bumperShape{};
+    if (!FindWorldCharacterBumperShapeData(context.controller, bumperShape)) {
         return false;
     }
 
-    const auto previousRadius = worldCapsuleShape->radius;
-    const auto previousVertexA = worldCapsuleShape->vertexA;
-    const auto previousVertexB = worldCapsuleShape->vertexB;
-    const auto previousHeight = worldCapsuleShape->vertexA.GetDistance3(worldCapsuleShape->vertexB);
-    const auto previousCenter = (ToNiPoint3(previousVertexA) + ToNiPoint3(previousVertexB)) * 0.5F;
-    const auto previousPosition = previousCenter * GetPresetScale();
-    auto& bumperAnchorState = bumperAnchorStates[a_actor->GetFormID()];
-    if (!bumperAnchorState.valid || bumperAnchorState.preset != a_anchorPreset) {
-        bumperAnchorState.preset = a_anchorPreset;
-        bumperAnchorState.centerZ = previousCenter.z;
-        bumperAnchorState.valid = true;
+    auto* worldCapsuleShape = bumperShape.capsule;
+    if (!worldCapsuleShape) {
+        return false;
     }
 
-    const auto mappedRadius = a_data.capsule.radius;
-    const auto mappedX = a_data.bump.translation.x * RE::bhkWorld::GetWorldScale();
-    const auto mappedY = a_data.bump.translation.y * RE::bhkWorld::GetWorldScale();
-    const auto presetPoint1Z = a_data.capsule.point1.z;
-    const auto presetPoint2Z = a_data.capsule.point2.z;
-    const auto* defaultPresetConfig = GetDefaultPresetConfig(a_anchorPreset);
-    const auto defaultPoint1Z = defaultPresetConfig ? defaultPresetConfig->data.capsule.point1.z : presetPoint1Z;
-    const auto defaultPoint2Z = defaultPresetConfig ? defaultPresetConfig->data.capsule.point2.z : presetPoint2Z;
-    const auto defaultCenterZ = (defaultPoint1Z + defaultPoint2Z) * 0.5F;
-    const auto anchorCenterZ = bumperAnchorState.centerZ;
-    const auto mappedPoint1Z = anchorCenterZ + (presetPoint1Z - defaultCenterZ);
-    const auto mappedPoint2Z = anchorCenterZ - (defaultCenterZ - presetPoint2Z);
-    const auto mappedCenterZ = (mappedPoint1Z + mappedPoint2Z) * 0.5F;
-    const auto mappedCenter = RE::NiPoint3(mappedX, mappedY, mappedCenterZ);
-    const auto mappedPosition = mappedCenter * GetPresetScale();
-    const auto mappedVertexA = ToHkVector(RE::NiPoint3(mappedCenter.x, mappedCenter.y, mappedPoint1Z));
-    const auto mappedVertexB = ToHkVector(RE::NiPoint3(mappedCenter.x, mappedCenter.y, mappedPoint2Z));
+    const auto actorFormID = a_actor->GetFormID();
+    auto& lastActorState = actorStates[actorFormID];
 
-    worldCapsuleShape->radius = mappedRadius;
-    worldCapsuleShape->vertexA = mappedVertexA;
-    worldCapsuleShape->vertexB = mappedVertexB;
+    if (!a_sittingFlags.isSitting) {
+        if (!lastActorState.sittingPoseApplied || !lastActorState.hasStandingCapsule) {
+            return true;
+        }
 
-    if (a_log) {
-        logger::info(
-            "\n"
-            "  Center         : ({}, {}, {}) -> ({}, {}, {}), \n"
-            "  Default Z      : top {}, bottom {}, center {}, \n"
-            "  Anchor  Z      : {}, \n"
-            "  Mapped  Z      : top {}, bottom {}, center {}, \n"
-            "  Radius         : {} -> {}, \n"
-            "  Height         : {} -> {}",
-            previousPosition.x,
-            previousPosition.y,
-            previousPosition.z,
-            mappedPosition.x,
-            mappedPosition.y,
-            mappedPosition.z,
-            defaultPoint1Z,
-            defaultPoint2Z,
-            defaultCenterZ,
-            anchorCenterZ,
-            mappedPoint1Z,
-			mappedPoint2Z,
-            mappedCenterZ,
-            previousRadius,
-            worldCapsuleShape->radius,
-            previousHeight,
-            worldCapsuleShape->vertexA.GetDistance3(worldCapsuleShape->vertexB)
-        );
+        ApplyCapsulePoseHeight(worldCapsuleShape, lastActorState.standingRadius, lastActorState.standingPoint1Z, lastActorState.standingPoint2Z);
+        lastActorState.sittingPoseApplied = false;
+        return true;
     }
+
+    if (!lastActorState.sittingPoseApplied) {
+        CacheStandingCapsule(lastActorState, ToNiPoint3(worldCapsuleShape->vertexA).z, ToNiPoint3(worldCapsuleShape->vertexB).z, worldCapsuleShape->radius);
+    }
+
+    auto mappedPoint1Z = lastActorState.standingPoint1Z;
+    auto mappedPoint2Z = lastActorState.standingPoint2Z;
+    ApplySittingCapsule(lastActorState, mappedPoint1Z, mappedPoint2Z, lastActorState.standingRadius, a_sittingFlags);
+    ApplyCapsulePoseHeight(worldCapsuleShape, lastActorState.standingRadius, mappedPoint1Z, mappedPoint2Z);
+    lastActorState.sittingPoseApplied = true;
     return true;
 }
 
 
 RE::hkpCapsuleShape* Manager::FindWorldCharacterBumperShape(RE::bhkCharacterController* a_controller) const
+{
+    CharacterBumperShape bumperShape{};
+    if (!FindWorldCharacterBumperShapeData(a_controller, bumperShape)) {
+        return nullptr;
+    }
+
+    return bumperShape.capsule;
+}
+
+RE::hkpShape* Manager::GetControllerRootShape(RE::bhkCharacterController* a_controller) const
 {
     if (!a_controller) {
         LogCharacterBumperFailure("controller unavailable");
@@ -208,21 +165,34 @@ RE::hkpCapsuleShape* Manager::FindWorldCharacterBumperShape(RE::bhkCharacterCont
         return nullptr;
     }
 
-    if (auto* bumperShape = FindCharacterBumperShape(shape, RE::HK_INVALID_SHAPE_KEY)) {
+    return shape;
+}
+
+bool Manager::FindWorldCharacterBumperShapeData(RE::bhkCharacterController* a_controller, CharacterBumperShape& a_bumper) const
+{
+    auto* shape = GetControllerRootShape(a_controller);
+    if (!shape) {
+        return false;
+    }
+
+    a_bumper.rootShape = shape;
+    if (FindCharacterBumperShape(shape, RE::HK_INVALID_SHAPE_KEY, a_bumper)) {
         ClearCharacterBumperFailure();
-        return bumperShape;
+        return true;
     }
 
     CapsuleCandidate candidate{};
     FindLargestCapsuleShape(shape, candidate);
     if (candidate.capsule) {
         ClearCharacterBumperFailure();
-        logger::debug("Using fallback CharacterBumper capsule. radius={}, height={}", candidate.capsule->radius, candidate.height);
-        return candidate.capsule;
+        logger::debug("Using fallback Bumper capsule. radius={}, height={}", candidate.capsule->radius, candidate.height);
+        a_bumper.capsule = candidate.capsule;
+        a_bumper.childInfo = candidate.childInfo;
+        return true;
     }
 
-    LogCharacterBumperFailure("CharacterBumper capsule not found", static_cast<std::uint32_t>(shape->type));
-    return nullptr;
+    LogCharacterBumperFailure("Bumper capsule not found", static_cast<std::uint32_t>(shape->type));
+    return false;
 }
 
 bool Manager::GetActorBumperContext(const RE::Actor* a_actor, ActorBumperContext& a_context, const bool& a_log) const
@@ -263,58 +233,63 @@ bool Manager::GetActorBumperContext(const RE::Actor* a_actor, ActorBumperContext
     return true;
 }
 
-RE::hkpCapsuleShape* Manager::FindCharacterBumperShape(RE::hkpShape* a_shape, const RE::hkpShapeKey& a_key) const
+bool Manager::FindCharacterBumperShape(RE::hkpShape* a_shape, const RE::hkpShapeKey& a_key, CharacterBumperShape& a_bumper) const
 {
     if (!a_shape) {
-        return nullptr;
+        return false;
     }
 
     if (a_shape->type == RE::hkpShapeType::kCapsule && IsCharacterBumperShape(a_shape, a_key)) {
-        return skyrim_cast<RE::hkpCapsuleShape*>(a_shape);
+        a_bumper.capsule = skyrim_cast<RE::hkpCapsuleShape*>(a_shape);
+        return a_bumper.capsule;
     }
 
-    // Inspired by the DCA mod.
     if (a_shape->type == RE::hkpShapeType::kList) {
         auto* listShape = skyrim_cast<RE::hkpListShape*>(a_shape);
         if (!listShape) {
-            return nullptr;
+            return false;
         }
 
         for (auto& childInfo : listShape->childInfo) {
             auto* childShape = const_cast<RE::hkpShape*>(childInfo.shape);
             if (childShape && childShape->type == RE::hkpShapeType::kCapsule && IsCharacterBumperShape(childShape, RE::HK_INVALID_SHAPE_KEY)) {
-                return skyrim_cast<RE::hkpCapsuleShape*>(childShape);
+                a_bumper.capsule = skyrim_cast<RE::hkpCapsuleShape*>(childShape);
+                a_bumper.childInfo = &childInfo;
+                return a_bumper.capsule;
             }
 
-            if (auto* bumperShape = FindCharacterBumperShape(childShape, RE::HK_INVALID_SHAPE_KEY)) {
-                return bumperShape;
+            auto nestedBumper = a_bumper;
+            if (FindCharacterBumperShape(childShape, RE::HK_INVALID_SHAPE_KEY, nestedBumper)) {
+                a_bumper = nestedBumper;
+                return true;
             }
         }
 
-        return nullptr;
+        return false;
     }
 
     const auto* container = a_shape->GetContainer();
     if (!container) {
-        return nullptr;
+        return false;
     }
 
     for (auto key = container->GetFirstKey(); key != RE::HK_INVALID_SHAPE_KEY; key = container->GetNextKey(key)) {
         RE::hkpShapeBuffer buffer{};
         auto* childShape = const_cast<RE::hkpShape*>(container->GetChildShape(key, buffer));
         if (childShape && childShape->type == RE::hkpShapeType::kCapsule && IsCharacterBumperShape(a_shape, key)) {
-            return skyrim_cast<RE::hkpCapsuleShape*>(childShape);
+            a_bumper.capsule = skyrim_cast<RE::hkpCapsuleShape*>(childShape);
+            return a_bumper.capsule;
         }
 
-        if (auto* bumperShape = FindCharacterBumperShape(childShape, key)) {
-            return bumperShape;
+        if (FindCharacterBumperShape(childShape, key, a_bumper)) {
+            return true;
         }
     }
 
-    return nullptr;
+    return false;
 }
 
-void Manager::FindLargestCapsuleShape(RE::hkpShape* a_shape, CapsuleCandidate& a_candidate) const
+void Manager::FindLargestCapsuleShape(RE::hkpShape* a_shape, CapsuleCandidate& a_candidate, RE::hkpListShape::ChildInfo* a_childInfo) const
 {
     if (!a_shape) {
         return;
@@ -325,6 +300,7 @@ void Manager::FindLargestCapsuleShape(RE::hkpShape* a_shape, CapsuleCandidate& a
         const auto height = capsule ? capsule->vertexA.GetDistance3(capsule->vertexB) : 0.0F;
         if (capsule && height > a_candidate.height) {
             a_candidate.capsule = capsule;
+            a_candidate.childInfo = a_childInfo;
             a_candidate.height = height;
         }
 
@@ -338,7 +314,7 @@ void Manager::FindLargestCapsuleShape(RE::hkpShape* a_shape, CapsuleCandidate& a
         }
 
         for (auto& childInfo : listShape->childInfo) {
-            FindLargestCapsuleShape(const_cast<RE::hkpShape*>(childInfo.shape), a_candidate);
+            FindLargestCapsuleShape(const_cast<RE::hkpShape*>(childInfo.shape), a_candidate, &childInfo);
         }
 
         return;
@@ -352,7 +328,7 @@ void Manager::FindLargestCapsuleShape(RE::hkpShape* a_shape, CapsuleCandidate& a
     for (auto key = container->GetFirstKey(); key != RE::HK_INVALID_SHAPE_KEY; key = container->GetNextKey(key)) {
         RE::hkpShapeBuffer buffer{};
         auto* childShape = const_cast<RE::hkpShape*>(container->GetChildShape(key, buffer));
-        FindLargestCapsuleShape(childShape, a_candidate);
+        FindLargestCapsuleShape(childShape, a_candidate, nullptr);
     }
 }
 
@@ -373,19 +349,111 @@ bool Manager::IsCharacterBumperShape(const RE::hkpShape* a_shape, const RE::hkpS
     return false;
 }
 
-bool Manager::IsCharacterBumperMaterial(const RE::MATERIAL_ID& a_materialID) const
+bool Manager::FindControllerConvexShape(RE::bhkCharacterController* a_controller, ConvexShapeData& a_convex) const
 {
-    if (a_materialID == RE::MATERIAL_ID::kCharacterBumper) {
+    auto* rootShape = GetControllerRootShape(a_controller);
+    if (!rootShape) {
+        return false;
+    }
+
+    a_convex.rootShape = rootShape;
+    if (rootShape->type == RE::hkpShapeType::kList) {
+        auto* listShape = skyrim_cast<RE::hkpListShape*>(rootShape);
+        if (!listShape || listShape->childInfo.empty()) {
+            return false;
+        }
+
+        auto& childInfo = listShape->childInfo[0];
+        auto* childShape = const_cast<RE::hkpShape*>(childInfo.shape);
+        if (!childShape || childShape->type != RE::hkpShapeType::kConvexVertices) {
+            return false;
+        }
+
+        a_convex.listShape = listShape;
+        a_convex.childInfo = &childInfo;
+        a_convex.convexShape = skyrim_cast<RE::hkpConvexVerticesShape*>(childShape);
+        return a_convex.convexShape;
+    }
+
+    if (rootShape->type != RE::hkpShapeType::kConvexVertices) {
+        return false;
+    }
+
+    a_convex.convexShape = skyrim_cast<RE::hkpConvexVerticesShape*>(rootShape);
+    return a_convex.convexShape;
+}
+
+bool Manager::CacheConvexShapeState(const RE::FormID& a_formID, const RE::hkpConvexVerticesShape* a_shape, ConvexShapeState& a_state)
+{
+    if (a_state.valid) {
         return true;
     }
 
-    return a_materialID == RE::MATERIAL_ID::kTrap;
+    if (!a_shape) {
+        return false;
+    }
+
+    RE::hkArray<RE::hkVector4> originalVertices{};
+    Havok::GetOriginalVertices(a_shape, originalVertices);
+    if (originalVertices.empty()) {
+        logger::warn("Player convex cache failed [{:08X}]: original vertices unavailable", a_formID);
+        return false;
+    }
+
+    a_state.originalVertices.assign(originalVertices.begin(), originalVertices.end());
+    const auto vertex = ToNiPoint3(a_state.originalVertices[0]);
+    a_state.originalRadius = std::sqrt((vertex.x * vertex.x) + (vertex.y * vertex.y));
+    a_state.valid = a_state.originalRadius > 0.0F;
+    if (!a_state.valid) {
+        logger::warn("Player convex cache failed [{:08X}]: original radius unavailable", a_formID);
+        return false;
+    }
+
+    logger::debug("Player convex cache [{:08X}]: vertices={}, radius={}", a_formID, a_state.originalVertices.size(), a_state.originalRadius);
+    return true;
 }
 
-Manager::LookupFailureState& Manager::GetLookupFailureState()
+bool Manager::ReplaceControllerConvexShape(RE::bhkCharacterController* a_controller, ConvexShapeData& a_convex, RE::hkpConvexVerticesShape* a_newShape) const
 {
-    static LookupFailureState state{};
-    return state;
+    if (!a_controller || !a_convex.convexShape || !a_newShape) {
+        return false;
+    }
+
+    auto* oldShape = a_convex.convexShape;
+    if (oldShape->userData) {
+        oldShape->userData->SetReferencedObject(a_newShape);
+    }
+
+    if (a_convex.childInfo) {
+        a_convex.childInfo->shape = a_newShape;
+        oldShape->RemoveReference();
+        a_convex.convexShape = a_newShape;
+        return true;
+    }
+
+    bool replaced = false;
+    if (auto* proxyController = skyrim_cast<RE::bhkCharProxyController*>(a_controller)) {
+        auto* proxy = proxyController->GetCharacterProxy();
+        if (proxy && proxy->shapePhantom) {
+            proxy->shapePhantom->SetShape(a_newShape);
+            replaced = true;
+        }
+    }
+    else if (auto* rigidBodyController = skyrim_cast<RE::bhkCharRigidBodyController*>(a_controller)) {
+        auto* rigidBody = rigidBodyController->GetRigidBody();
+        if (rigidBody) {
+            rigidBody->SetShape(a_newShape);
+            replaced = true;
+        }
+    }
+
+    if (replaced) {
+        a_newShape->RemoveReference();
+        a_convex.rootShape = a_newShape;
+        a_convex.convexShape = a_newShape;
+    }
+
+    return replaced;
 }
 
 void Manager::LogCharacterBumperFailure(const char* a_reason) const
@@ -396,7 +464,7 @@ void Manager::LogCharacterBumperFailure(const char* a_reason) const
         return;
     }
 
-    logger::warn("CharacterBumper lookup failed: {}", a_reason);
+    logger::warn("Bumper lookup failed: {}", a_reason);
     state.reason = a_reason;
     state.shapeType = shapeType;
 }
@@ -408,7 +476,7 @@ void Manager::LogCharacterBumperFailure(const char* a_reason, const std::uint32_
         return;
     }
 
-    logger::warn("CharacterBumper lookup failed: {}. rootShapeType={}", a_reason, a_shapeType);
+    logger::warn("Bumper lookup failed: {}. rootShapeType={}", a_reason, a_shapeType);
     state.reason = a_reason;
     state.shapeType = a_shapeType;
 }
@@ -418,17 +486,6 @@ void Manager::ClearCharacterBumperFailure() const
     auto& state = GetLookupFailureState();
     state.reason = nullptr;
     state.shapeType = std::numeric_limits<std::uint32_t>::max();
-}
-
-bool Manager::AreAllPresetsLoaded() const
-{
-    for (const auto& presetConfig : presetConfigs) {
-        if (!presetConfig.loaded) {
-            return false;
-        }
-    }
-
-    return true;
 }
 
 size_t Manager::GetLoadedPresetCount() const
@@ -443,37 +500,7 @@ size_t Manager::GetLoadedPresetCount() const
     return count;
 }
 
-const std::array<PresetConfig, kPresetCount>& Manager::GetPresetConfigs() const noexcept
-{
-    return presetConfigs;
-}
-
-const PresetConfig* Manager::GetPresetConfig(const VCD::Preset& a_preset) const
-{
-    const auto index = static_cast<size_t>(ToUnderlying(a_preset));
-    if (index >= presetConfigs.size()) {
-        return nullptr;
-    }
-
-    return &presetConfigs[index];
-}
-
-PresetConfig* Manager::GetPresetConfig(const VCD::Preset& a_preset)
-{
-    return const_cast<PresetConfig*>(static_cast<const Manager*>(this)->GetPresetConfig(a_preset));
-}
-
-const PresetConfig* Manager::GetDefaultPresetConfig(const VCD::Preset& a_preset) const
-{
-    const auto index = static_cast<size_t>(ToUnderlying(a_preset));
-    if (index >= defaultPresetConfigs.size()) {
-        return nullptr;
-    }
-
-    return &defaultPresetConfigs[index];
-}
-
-bool Manager::RestorePresetDefault(const VCD::Preset& a_preset)
+bool Manager::RestorePresetDefault(const Preset& a_preset)
 {
     auto* presetConfig = GetPresetConfig(a_preset);
     const auto* defaultPresetConfig = GetDefaultPresetConfig(a_preset);
@@ -486,4 +513,63 @@ bool Manager::RestorePresetDefault(const VCD::Preset& a_preset)
     return true;
 }
 
+bool Manager::CreatePreset(const std::string& a_name, const CollisionData& a_data, Preset& a_preset, std::string& a_error)
+{
+    const auto first = std::find_if_not(a_name.begin(), a_name.end(),
+        [](const unsigned char& a_character) {
+            return std::isspace(a_character);
+        }
+    );
+    const auto last = std::find_if_not(a_name.rbegin(), a_name.rend(),
+        [](const unsigned char& a_character) {
+            return std::isspace(a_character);
+        }
+    ).base();
+
+    const std::string name = first < last ? std::string(first, last) : std::string{};
+    const auto key = MakePresetKey(name);
+    if (key.empty()) {
+        a_error = "Enter a name containing letters or numbers.";
+        return false;
+    }
+
+    if (GetPresetConfig(key)) {
+        a_error = "A preset with this name already exists.";
+        return false;
+    }
+
+    std::error_code ec;
+    if (fs::exists(GetPresetDir() / (key + ".json"), ec)) {
+        a_error = "A preset file with this name already exists.";
+        return false;
+    }
+
+    PresetConfig config{};
+    config.preset = static_cast<Preset>(presetConfigs.size());
+    config.key = key;
+    config.name = name;
+    config.data = a_data;
+    config.data.RecalculateHeight();
+    config.loaded = true;
+    config.builtIn = false;
+
+    if (!SavePresetConfiguration(config, a_error)) {
+        return false;
+    }
+
+    presetConfigs.push_back(config);
+    defaultPresetConfigs.push_back(config);
+    presetIndices.emplace(config.key, presetConfigs.size() - 1);
+    a_preset = config.preset;
+    return true;
+}
+
+void Manager::RebuildPresetIndex()
+{
+    presetIndices.clear();
+    presetIndices.reserve(presetConfigs.size());
+    for (size_t i = 0; i < presetConfigs.size(); ++i) {
+        presetIndices[presetConfigs[i].key] = i;
+    }
+}
 

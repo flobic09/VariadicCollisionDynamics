@@ -3,9 +3,13 @@
 #include "menu.hpp"
 #include "color.hpp"
 #include "logger.hpp"
+#include "helper.hpp"
 #include "manager.hpp"
 #include "dynamics.hpp"
 #include "settings.hpp"
+#include "posefixes.hpp"
+
+#include <array>
 
 namespace UI {
 
@@ -20,7 +24,17 @@ namespace UI {
         bool previousDrawNearbyActors{ false };
 
         RE::ActorHandle previewActor{};
-        VCD::Preset preset{ VCD::Preset::kVanillaLike };
+        VCD::Preset preset{ VCD::Preset::kVanilla };
+        VCD::CollisionData defaults{};
+        VCD::CollisionData current{};
+    };
+
+    struct CreatePresetEditorState
+    {
+        bool open{ false };
+        bool preview{ false };
+        std::array<char, 128> name{};
+        std::string error{};
         VCD::CollisionData defaults{};
         VCD::CollisionData current{};
     };
@@ -39,10 +53,16 @@ namespace UI {
         return state;
     }
 
+    inline CreatePresetEditorState& GetCreatePresetEditorState()
+    {
+        static CreatePresetEditorState state{};
+        return state;
+    }
+
     inline void PreviewPreset(const VCD::Preset& a_preset)
     {
         if (const auto* player = RE::PlayerCharacter::GetSingleton()) {
-            logger::info("Preset preview result: {}", VCD::Manager::GetSingleton().SetPreset(player, a_preset));
+            logger::info("Preset preview result: {}", VCD::Manager::GetSingleton().SetPreset(player, a_preset, PoseFixes::PlayerSitting(player), true));
         }
     }
 
@@ -105,5 +125,9 @@ namespace UI {
     void ClosePresetEditor();
 
     void UpdateEditedPreset();
+
+    void OpenCreatePresetEditor();
+
+    void CloseCreatePresetEditor();
 
 }

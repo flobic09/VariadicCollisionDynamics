@@ -26,7 +26,7 @@ void PlayerUpdate::thunk(RE::PlayerCharacter* player, float delta) {
 
 	const auto& settings = Settings::GetSettings();
 	if (settings.drawCollision || settings.drawNearbyActors) {
-		DebugAPI_IMPL::DebugAPI::GetSingleton()->LinesToDraw.clear();
+		DebugAPI::GetSingleton()->LinesToDraw.clear();
 	}
 
 	if (settings.drawCollision) {
@@ -38,7 +38,7 @@ void PlayerUpdate::thunk(RE::PlayerCharacter* player, float delta) {
 	}
 
 	if (settings.drawCollision || settings.drawNearbyActors) {
-		DebugAPI_IMPL::DebugAPI::GetSingleton()->Update();
+		DebugAPI::GetSingleton()->Update();
 	}
 }
 

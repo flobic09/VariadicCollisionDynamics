@@ -21,6 +21,24 @@ namespace Settings {
 #define SETTING2COPY(S, D) a_target.S = a_source.S;
 #define SETTING2COPY_COLOR(S, D0, D1, D2, D3) a_target.S = a_source.S;
 
+	bool PresetOverrideMapsEqual(
+		const std::unordered_map<std::string, VCDSettings::PresetOverride>& a_left,
+		const std::unordered_map<std::string, VCDSettings::PresetOverride>& a_right)
+	{
+		if (a_left.size() != a_right.size()) {
+			return false;
+		}
+
+		for (const auto& [key, left] : a_left) {
+			const auto it = a_right.find(key);
+			if (it == a_right.end() || !JSON::PresetOverridesEqual(left, it->second)) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
 	bool ToolsSettingsEqual(const VCDSettings& a_left, const VCDSettings& a_right)
 	{
 		if (!(FOREACH_TOOL_BOOL_SETTING(SETTING2EQ) FOREACH_FLOAT_SETTING(SETTING2EQ) FOREACH_INT_SETTING(SETTING2EQ) true)) {
@@ -44,16 +62,9 @@ namespace Settings {
 			return false;
 		}
 
-		for (size_t i = 0; i < a_left.presets.size(); ++i) {
-			if (!JSON::PresetOverridesEqual(a_left.presets[i], a_right.presets[i])) {
-				return false;
-			}
-		}
-
-		for (size_t i = 0; i < a_left.npcPresets.size(); ++i) {
-			if (!JSON::PresetOverridesEqual(a_left.npcPresets[i], a_right.npcPresets[i])) {
-				return false;
-			}
+		if (!PresetOverrideMapsEqual(a_left.presets, a_right.presets) ||
+			!PresetOverrideMapsEqual(a_left.npcPresets, a_right.npcPresets)) {
+			return false;
 		}
 
 		if (a_left.npcActorPresets.size() != a_right.npcActorPresets.size()) {
@@ -78,6 +89,16 @@ namespace Settings {
 		a_target.presets = a_source.presets;
 		a_target.npcPresets = a_source.npcPresets;
 		a_target.npcActorPresets = a_source.npcActorPresets;
+	}
+
+	bool PoseFixesSettingsEqual(const VCDSettings& a_left, const VCDSettings& a_right)
+	{
+		return FOREACH_POSE_FIX_BOOL_SETTING(SETTING2EQ) true;
+	}
+
+	void CopyPoseFixesSettings(VCDSettings& a_target, const VCDSettings& a_source)
+	{
+		FOREACH_POSE_FIX_BOOL_SETTING(SETTING2COPY)
 	}
 
 	bool WriteJsonFile(const fs::path& a_path, const JSON::json& a_json, const char* a_label)
@@ -146,16 +167,9 @@ namespace Settings {
 			return false;
 		}
 
-		for (size_t i = 0; i < a_left.presets.size(); ++i) {
-			if (!JSON::PresetOverridesEqual(a_left.presets[i], a_right.presets[i])) {
-				return false;
-			}
-		}
-
-		for (size_t i = 0; i < a_left.npcPresets.size(); ++i) {
-			if (!JSON::PresetOverridesEqual(a_left.npcPresets[i], a_right.npcPresets[i])) {
-				return false;
-			}
+		if (!PresetOverrideMapsEqual(a_left.presets, a_right.presets) ||
+			!PresetOverrideMapsEqual(a_left.npcPresets, a_right.npcPresets)) {
+			return false;
 		}
 
 		if (a_left.npcActorPresets.size() != a_right.npcActorPresets.size()) {
@@ -202,15 +216,17 @@ namespace Settings {
 		spdlog::set_level(logLevel);
 		spdlog::flush_on(logLevel);
 
-		for (size_t i = 0; i < a_settings.presets.size(); ++i) {
-			const auto preset = static_cast<VCD::Preset>(i);
-			if (!a_settings.presets[i].edited) {
-				manager.RestorePresetDefault(preset);
+		for (const auto& presetConfig : manager.GetPresetConfigs()) {
+			manager.RestorePresetDefault(presetConfig.preset);
+		}
+
+		for (const auto& [key, presetOverride] : a_settings.presets) {
+			if (!presetOverride.edited) {
 				continue;
 			}
 
-			if (auto* presetConfig = manager.GetPresetConfig(preset)) {
-				presetConfig->data = a_settings.presets[i].data;
+			if (auto* presetConfig = manager.GetPresetConfig(key)) {
+				presetConfig->data = presetOverride.data;
 				presetConfig->data.RecalculateHeight();
 			}
 		}
@@ -225,67 +241,65 @@ namespace Settings {
 
 	void MarkPresetEdited(const VCD::Preset& a_preset, const VCD::CollisionData& a_data)
 	{
-		const auto index = static_cast<size_t>(VCD::ToUnderlying(a_preset));
 		auto& settings = GetSettings();
-
-		if (index >= settings.presets.size()) {
+		const auto* presetConfig = VCD::Manager::GetSingleton().GetPresetConfig(a_preset);
+		if (!presetConfig) {
 			return;
 		}
 
-		settings.presets[index].edited = true;
-		settings.presets[index].data = a_data;
-		settings.presets[index].data.RecalculateHeight();
+		auto& presetOverride = settings.presets[presetConfig->key];
+		presetOverride.edited = true;
+		presetOverride.data = a_data;
+		presetOverride.data.RecalculateHeight();
 	}
 
 	void ClearPresetEdited(const VCD::Preset& a_preset)
 	{
-		const auto index = static_cast<size_t>(VCD::ToUnderlying(a_preset));
 		auto& settings = GetSettings();
-
-		if (index >= settings.presets.size()) {
+		const auto* presetConfig = VCD::Manager::GetSingleton().GetPresetConfig(a_preset);
+		if (!presetConfig) {
 			return;
 		}
 
-		settings.presets[index] = {};
+		settings.presets.erase(presetConfig->key);
 		VCD::Manager::GetSingleton().RestorePresetDefault(a_preset);
 	}
 
 	const VCD::CollisionData* GetNPCPresetOverride(const VCD::Preset& a_preset)
 	{
-		const auto index = static_cast<size_t>(VCD::ToUnderlying(a_preset));
 		const auto& settings = GetSettings();
-
-		if (index >= settings.npcPresets.size() || !settings.npcPresets[index].edited) {
+		const auto* presetConfig = VCD::Manager::GetSingleton().GetPresetConfig(a_preset);
+		if (!presetConfig) {
 			return nullptr;
 		}
 
-		return &settings.npcPresets[index].data;
+		const auto it = settings.npcPresets.find(presetConfig->key);
+		return it != settings.npcPresets.end() && it->second.edited ? &it->second.data : nullptr;
 	}
 
 	void MarkNPCPresetEdited(const VCD::Preset& a_preset, const VCD::CollisionData& a_data)
 	{
-		const auto index = static_cast<size_t>(VCD::ToUnderlying(a_preset));
 		auto& settings = GetSettings();
-
-		if (index >= settings.npcPresets.size()) {
+		const auto* presetConfig = VCD::Manager::GetSingleton().GetPresetConfig(a_preset);
+		if (!presetConfig) {
 			return;
 		}
 
-		settings.npcPresets[index].edited = true;
-		settings.npcPresets[index].data = a_data;
-		settings.npcPresets[index].data.RecalculateHeight();
+		auto& presetOverride = settings.npcPresets[presetConfig->key];
+		presetOverride.edited = true;
+		presetOverride.data = a_data;
+		presetOverride.data.RecalculateHeight();
 	}
 
 	void ClearNPCPresetEdited(const VCD::Preset& a_preset)
 	{
-		const auto index = static_cast<size_t>(VCD::ToUnderlying(a_preset));
 		auto& settings = GetSettings();
-
-		if (index >= settings.npcPresets.size()) {
+		const auto* presetConfig = VCD::Manager::GetSingleton().GetPresetConfig(a_preset);
+		if (!presetConfig) {
 			return;
 		}
 
-		settings.npcPresets[index] = {};
+		settings.npcPresets.erase(presetConfig->key);
 	}
 
 	const VCD::CollisionData* GetNPCActorPresetOverride(const RE::FormID& a_formID, const VCD::Preset& a_preset)
@@ -336,6 +350,11 @@ namespace Settings {
 		return !ToolsSettingsEqual(GetSettings(), GetSavedSettings());
 	}
 
+	bool IsPoseFixesDirty()
+	{
+		return !PoseFixesSettingsEqual(GetSettings(), GetSavedSettings());
+	}
+
 	bool IsDynamicsDefault()
 	{
 		CaptureCurrent(GetSettings());
@@ -347,6 +366,12 @@ namespace Settings {
 	{
 		const auto defaults = VCDSettings{};
 		return ToolsSettingsEqual(GetSettings(), defaults);
+	}
+
+	bool IsPoseFixesDefault()
+	{
+		const auto defaults = VCDSettings{};
+		return PoseFixesSettingsEqual(GetSettings(), defaults);
 	}
 
 	void ResetDynamics()
@@ -361,6 +386,12 @@ namespace Settings {
 		const auto defaults = VCDSettings{};
 		CopyToolsSettings(GetSettings(), defaults);
 		ApplyToolSettings(GetSettings());
+	}
+
+	void ResetPoseFixes()
+	{
+		const auto defaults = VCDSettings{};
+		CopyPoseFixesSettings(GetSettings(), defaults);
 	}
 
 	bool Load()
@@ -433,6 +464,19 @@ namespace Settings {
 		}
 
 		CopyToolsSettings(GetSavedSettings(), GetSettings());
+		return true;
+	}
+
+	bool SavePoseFixes()
+	{
+		auto settings = GetSavedSettings();
+		CopyPoseFixesSettings(settings, GetSettings());
+
+		if (!WriteJsonFile(GetSettingsPath(), JSON::ToolsToJson(settings), "Settings")) {
+			return false;
+		}
+
+		CopyPoseFixesSettings(GetSavedSettings(), GetSettings());
 		return true;
 	}
 

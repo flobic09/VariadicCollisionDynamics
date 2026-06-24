@@ -7,23 +7,46 @@
 #include <array>
 #include <cstddef>
 #include <string>
+#include <unordered_map>
 
 namespace JSON {
 
 	using json = nlohmann::json;
 
+
+	json PresetOverridesToJson(const std::unordered_map<std::string, Settings::VCDSettings::PresetOverride>& a_presets);
+
+	void PresetOverridesFromJson(const json& a_json, const char* a_key, std::unordered_map<std::string, Settings::VCDSettings::PresetOverride>& a_presets);
+
+	json NPCActorPresetsToJson(const Settings::VCDSettings& a_settings);
+
+	void NPCActorPresetsFromJson(const json& a_json, Settings::VCDSettings& a_settings);
+
+	json PlayerStateToJson(const Settings::VCDSettings& a_settings);
+
+	void PlayerStateFromJson(const json& a_json, Settings::VCDSettings& a_settings);
+
+	json NPCStateToJson(const Settings::VCDSettings& a_settings);
+
+	void NPCStateFromJson(const json& a_json, Settings::VCDSettings& a_settings);
+
+	json ToJson(const Settings::VCDSettings& a_settings);
+
+	void FromJson(const json& a_json, Settings::VCDSettings& a_settings);
+
+	bool ReadVec3(VCD::Vec3& a_out, const json& a_json);
+
+	bool ReadNiPoint3(RE::NiPoint3& a_out, const json& a_json);
+
 #define BOOL2JSON(S, D) { #S, a_settings.S },
 #define FLOAT2JSON(S, D) { #S, a_settings.S },
 #define INT2JSON(S, D) { #S, a_settings.S },
 #define COLOR2JSON(S, D0, D1, D2, D3) { #S, a_settings.S },
-#define PRESET2JSON(S, D) { #S, Settings::PresetToString(a_settings.S) },
-
 
 #define BOOL2GETTER(S, D) Settings::getBool(a_json, #S, a_settings.S);
 #define FLOAT2GETTER(S, D) Settings::getFloat(a_json, #S, a_settings.S);
 #define INT2GETTER(S, D) Settings::getInt(a_json, #S, a_settings.S);
 #define COLOR2GETTER(S, D0, D1, D2, D3) Settings::getColor(a_json, #S, a_settings.S);
-#define PRESET2GETTER(S, D) Settings::getPreset(a_json, #S, a_settings.S);
 
 	inline json ToolsToJson(const Settings::VCDSettings& a_settings)
 	{
@@ -60,48 +83,6 @@ namespace JSON {
 		return json::array({ a_point.x, a_point.y, a_point.z });
 	}
 
-	inline bool ReadVec3(VCD::Vec3& a_out, const json& a_json)
-	{
-		if (!a_json.is_array()) {
-			return false;
-		}
-
-		if (a_json.size() > 0) {
-			a_out.x = a_json[0].get<float>();
-		}
-
-		if (a_json.size() > 1) {
-			a_out.y = a_json[1].get<float>();
-		}
-
-		if (a_json.size() > 2) {
-			a_out.z = a_json[2].get<float>();
-		}
-
-		return true;
-	}
-
-	inline bool ReadNiPoint3(RE::NiPoint3& a_out, const json& a_json)
-	{
-		if (!a_json.is_array()) {
-			return false;
-		}
-
-		if (a_json.size() > 0) {
-			a_out.x = a_json[0].get<float>();
-		}
-
-		if (a_json.size() > 1) {
-			a_out.y = a_json[1].get<float>();
-		}
-
-		if (a_json.size() > 2) {
-			a_out.z = a_json[2].get<float>();
-		}
-
-		return true;
-	}
-
 	inline json CollisionDataToJson(const VCD::CollisionData& a_data)
 	{
 		return {
@@ -133,165 +114,5 @@ namespace JSON {
 
 		a_data.RecalculateHeight();
 	}
-
-	inline json PresetOverridesToJson(const std::array<Settings::VCDSettings::PresetOverride, VCD::kPresetCount>& a_presets)
-	{
-		json presets = json::object();
-
-		for (size_t i = 0; i < a_presets.size(); ++i) {
-			const auto preset = static_cast<VCD::Preset>(i);
-			const auto& presetOverride = a_presets[i];
-			auto entry = json{
-				{ "edited", presetOverride.edited }
-			};
-
-			if (presetOverride.edited) {
-				entry.update(CollisionDataToJson(presetOverride.data));
-			}
-
-			presets[Settings::PresetToString(preset)] = entry;
-		}
-
-		return presets;
-	}
-
-	inline void PresetOverridesFromJson(const json& a_json, const char* a_key, std::array<Settings::VCDSettings::PresetOverride, VCD::kPresetCount>& a_presets)
-	{
-		if (!a_json.contains(a_key) || !a_json.at(a_key).is_object()) {
-			return;
-		}
-
-		const auto& presets = a_json.at(a_key);
-		for (size_t i = 0; i < a_presets.size(); ++i) {
-			const auto preset = static_cast<VCD::Preset>(i);
-			const auto name = Settings::PresetToString(preset);
-			if (!presets.contains(name)) {
-				continue;
-			}
-
-			const auto& entry = presets.at(name);
-			auto& presetOverride = a_presets[i];
-
-			if (entry.contains("edited")) {
-				presetOverride.edited = entry.at("edited").get<bool>();
-			}
-
-			if (presetOverride.edited) {
-				CollisionDataFromJson(entry, presetOverride.data);
-			}
-		}
-	}
-
-	inline json NPCActorPresetsToJson(const Settings::VCDSettings& a_settings)
-	{
-		auto actors = json::array();
-
-		for (const auto& actorPreset : a_settings.npcActorPresets) {
-			actors.push_back({
-				{ "formID", actorPreset.formID },
-				{ "name", actorPreset.name },
-				{ "preset", Settings::PresetToString(actorPreset.preset) },
-				{ "data", CollisionDataToJson(actorPreset.data) }
-			});
-		}
-
-		return actors;
-	}
-
-	inline void NPCActorPresetsFromJson(const json& a_json, Settings::VCDSettings& a_settings)
-	{
-		if (!a_json.contains("actorPresets") || !a_json.at("actorPresets").is_array()) {
-			return;
-		}
-
-		a_settings.npcActorPresets.clear();
-		for (const auto& entry : a_json.at("actorPresets")) {
-			if (!entry.is_object() || !entry.contains("formID") || !entry.contains("preset") || !entry.contains("data")) {
-				continue;
-			}
-
-			Settings::VCDSettings::NPCActorPresetOverride actorPreset{};
-			actorPreset.formID = entry.at("formID").get<RE::FormID>();
-			actorPreset.preset = Settings::PresetFromString(entry.at("preset").get<std::string>());
-			if (entry.contains("name")) {
-				actorPreset.name = entry.at("name").get<std::string>();
-			}
-			CollisionDataFromJson(entry.at("data"), actorPreset.data);
-			a_settings.npcActorPresets.push_back(actorPreset);
-		}
-	}
-
-	inline json PlayerStateToJson(const Settings::VCDSettings& a_settings)
-	{
-		auto data = json{
-			FOREACH_PLAYER_PRESET_SETTING(PRESET2JSON)
-		};
-
-		data["presets"] = PresetOverridesToJson(a_settings.presets);
-		return data;
-	}
-
-	inline void PlayerStateFromJson(const json& a_json, Settings::VCDSettings& a_settings)
-	{
-		FOREACH_PLAYER_PRESET_SETTING(PRESET2GETTER)
-		PresetOverridesFromJson(a_json, "presets", a_settings.presets);
-	}
-
-	inline json NPCStateToJson(const Settings::VCDSettings& a_settings)
-	{
-		auto data = json{
-			FOREACH_NPC_PRESET_SETTING(PRESET2JSON)
-		};
-
-		data["presets"] = PresetOverridesToJson(a_settings.npcPresets);
-		data["actorPresets"] = NPCActorPresetsToJson(a_settings);
-		return data;
-	}
-
-	inline void NPCStateFromJson(const json& a_json, Settings::VCDSettings& a_settings)
-	{
-		FOREACH_NPC_PRESET_SETTING(PRESET2GETTER)
-		PresetOverridesFromJson(a_json, "presets", a_settings.npcPresets);
-		NPCActorPresetsFromJson(a_json, a_settings);
-	}
-
-	inline json ToJson(const Settings::VCDSettings& a_settings)
-	{
-		auto data = json{
-			FOREACH_BOOL_SETTING(BOOL2JSON)
-			FOREACH_FLOAT_SETTING(FLOAT2JSON)
-			FOREACH_INT_SETTING(INT2JSON)
-			FOREACH_COLOR_SETTING(COLOR2JSON)
-			FOREACH_PRESET_SETTING(PRESET2JSON)
-		};
-
-		data["presets"] = PresetOverridesToJson(a_settings.presets);
-		data["npcPresets"] = PresetOverridesToJson(a_settings.npcPresets);
-		data["actorPresets"] = NPCActorPresetsToJson(a_settings);
-		return data;
-	}
-
-	inline void FromJson(const json& a_json, Settings::VCDSettings& a_settings)
-	{
-		FOREACH_BOOL_SETTING(BOOL2GETTER)
-		FOREACH_FLOAT_SETTING(FLOAT2GETTER)
-		FOREACH_INT_SETTING(INT2GETTER)
-		FOREACH_PRESET_SETTING(PRESET2GETTER)
-		FOREACH_COLOR_SETTING(COLOR2GETTER)
-		PresetOverridesFromJson(a_json, "presets", a_settings.presets);
-		PresetOverridesFromJson(a_json, "npcPresets", a_settings.npcPresets);
-		NPCActorPresetsFromJson(a_json, a_settings);
-	}
-
-#undef BOOL2JSON
-#undef FLOAT2JSON
-#undef INT2JSON
-#undef COLOR2JSON
-#undef PRESET2JSON
-#undef BOOL2GETTER
-#undef FLOAT2GETTER
-#undef INT2GETTER
-#undef COLOR2GETTER
-#undef PRESET2GETTER
 
 }

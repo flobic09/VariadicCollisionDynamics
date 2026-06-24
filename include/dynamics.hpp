@@ -3,6 +3,8 @@
 #include "manager.hpp"
 
 #include <chrono>
+#include <cstring>
+#include <string_view>
 #include <vector>
 
 namespace Dynamics {
@@ -11,18 +13,25 @@ namespace Dynamics {
 	{
 		bool applied{ false };
 
-		VCD::Preset current{ VCD::Preset::kVanillaLike };
+		VCD::Preset current{ VCD::Preset::kVanilla };
 
 		const RE::TESObjectCELL* lastCell{ nullptr };
 
+		const RE::bhkCharacterController* controller{ nullptr };
+
 		const char* stateName{ "unknown" };
+
+		VCD::SittingFlags sittingFlags{};
 
 		// Retry mechanism for player transformations.
 		bool transitionRetryActive{ false };
-
 		std::chrono::steady_clock::time_point transitionRetryUntil{};
-
 		std::chrono::steady_clock::time_point nextTransitionRetry{};
+
+		// Reapply saved preset after this delay on loading.
+		bool postLoadApplyPending{ true };
+		bool postLoadTimerStarted{ false };
+		std::chrono::steady_clock::time_point postLoadApplyAt{};
 	};
 
 	struct PreviewState
@@ -31,7 +40,7 @@ namespace Dynamics {
 
 		bool restorePending{ false };
 
-		VCD::Preset preset{ VCD::Preset::kVanillaLike };
+		VCD::Preset preset{ VCD::Preset::kVanilla };
 
 		std::chrono::steady_clock::time_point restoreAt{};
 	};
@@ -42,7 +51,7 @@ namespace Dynamics {
 
 		RE::ActorHandle actor{};
 
-		VCD::Preset preset{ VCD::Preset::kVanillaLike };
+		VCD::Preset preset{ VCD::Preset::kVanilla };
 	};
 
 	struct NPCPresetState
@@ -51,16 +60,20 @@ namespace Dynamics {
 
 		RE::ActorHandle actor{};
 
-		VCD::Preset preset{ VCD::Preset::kVanillaLike };
+		const RE::bhkCharacterController* controller{ nullptr };
+
+		VCD::Preset preset{ VCD::Preset::kVanilla };
 
 		const char* stateName{ "unknown" };
+
+		VCD::SittingFlags sittingFlags{};
 	};
 
 	struct NPCDynamicsState
 	{
 		std::vector<NPCPresetState> actors{};
+		std::vector<RE::ActorHandle> poseFixedActors{};
 		std::vector<RE::ActorHandle> nearbyActors{};
-
 		std::chrono::steady_clock::time_point nextScan{};
 	};
 
@@ -71,8 +84,8 @@ namespace Dynamics {
 		VCD::Preset combat{ VCD::Preset::kBulky };
 		VCD::Preset werewolf{ VCD::Preset::kWerewolf };
 		VCD::Preset vampireLord{ VCD::Preset::kVampireLord };
-		VCD::Preset neutral{ VCD::Preset::kVanillaLike };
-		VCD::Preset npcNeutral{ VCD::Preset::kVanillaLike };
+		VCD::Preset neutral{ VCD::Preset::kVanilla };
+		VCD::Preset npcNeutral{ VCD::Preset::kVanilla };
 		VCD::Preset npcCombat{ VCD::Preset::kPersonalSpace };
 		VCD::Preset guardNeutral{ VCD::Preset::kCompact };
 		VCD::Preset guardCombat{ VCD::Preset::kBulky };
@@ -184,11 +197,15 @@ namespace Dynamics {
 
 	void StopNPCPresetPreview();
 
-	void RestoreNPCsToVanillaLike();
+	void SchedulePostLoadApply();
 
 	void SchedulePreviewRestore(const float& a_delaySeconds);
 
+	void RestoreNPCsToVanilla();
+
 	void RestorePresetPreview(const RE::PlayerCharacter* a_player);
+
+	void ClearRuntimeState();
 
 	void Update(const RE::PlayerCharacter* a_player);
 

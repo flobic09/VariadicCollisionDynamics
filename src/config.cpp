@@ -1,110 +1,65 @@
 #include "config.hpp"
+#include "json.hpp"
+
+#include <algorithm>
+#include <cctype>
 
 using json = nlohmann::json;
 
 namespace VCD {
 
-    namespace PresetJSON {
-        bool ReadVec3(Vec3& a_out, const json& a_data)
-        {
-            if (a_data.is_array()) {
-                if (a_data.size() > 0) {
-                    a_out.x = a_data[0].get<float>();
-                }
+	CollisionData MakeVanillaFallbackData()
+	{
+		CollisionData fallback{};
+		fallback.bump.translation = { 0.0F, 17.0F, 0.0F };
+		fallback.capsule.radius = 0.286F;
+		fallback.capsule.point1 = { 0.0F, 0.0F, 1.372F };
+		fallback.capsule.point2 = { 0.0F, 0.0F, 0.286F };
+		fallback.RecalculateHeight();
+		return fallback;
+	}
 
-                if (a_data.size() > 1) {
-                    a_out.y = a_data[1].get<float>();
-                }
+	const CollisionData& GetVanillaFallbackData()
+	{
+		static const CollisionData fallback = MakeVanillaFallbackData();
+		return fallback;
+	}
 
-                if (a_data.size() > 2) {
-                    a_out.z = a_data[2].get<float>();
-                }
+    std::vector<fs::path> GetPresetPaths()
+    {
+        std::vector<fs::path> paths;
+        const auto dir = GetPresetDir();
 
-                return true;
-            }
-
-            if (!a_data.is_object()) {
-                return false;
-            }
-
-            if (a_data.contains("x")) {
-                a_out.x = a_data["x"].get<float>();
-            }
-
-            if (a_data.contains("y")) {
-                a_out.y = a_data["y"].get<float>();
-            }
-
-            if (a_data.contains("z")) {
-                a_out.z = a_data["z"].get<float>();
-            }
-
-            return true;
+        std::error_code ec;
+        if (!fs::exists(dir, ec) || !fs::is_directory(dir, ec)) {
+            return paths;
         }
 
-        bool ReadNiPoint3(RE::NiPoint3& a_out, const json& a_data)
-        {
-            if (a_data.is_array()) {
-                if (a_data.size() > 0) {
-                    a_out.x = a_data[0].get<float>();
-                }
+        auto it = fs::recursive_directory_iterator(dir, fs::directory_options::skip_permission_denied, ec);
+        fs::recursive_directory_iterator end;
 
-                if (a_data.size() > 1) {
-                    a_out.y = a_data[1].get<float>();
-                }
-
-                if (a_data.size() > 2) {
-                    a_out.z = a_data[2].get<float>();
-                }
-
-                return true;
-            }
-
-            if (!a_data.is_object()) {
-                return false;
-            }
-
-            if (a_data.contains("x")) {
-                a_out.x = a_data["x"].get<float>();
-            }
-
-            if (a_data.contains("y")) {
-                a_out.y = a_data["y"].get<float>();
-            }
-
-            if (a_data.contains("z")) {
-                a_out.z = a_data["z"].get<float>();
-            }
-
-            return true;
+        if (ec) {
+            logger::critical("Cannot iterate over {}: {}", ToUTF8(dir), ec.message());
         }
 
-        Preset PresetFromFileName(const fs::path& a_path)
-        {
-            const auto stem = VCD::ToUTF8(a_path.stem());
+        while (it != end) {
+            const auto& path = it->path();
 
-            if (stem == "PersonalSpace") {
-                return Preset::kPersonalSpace;
+            if (fs::is_regular_file(path, ec) && path.extension() == ".json") {
+                logger::info("Found preset file: {}", ToUTF8(path));
+                paths.push_back(path);
             }
 
-            if (stem == "Compact") {
-                return Preset::kCompact;
-            }
+            ec.clear();
+            it.increment(ec);
 
-            if (stem == "Bulky") {
-                return Preset::kBulky;
+            if (ec) {
+                logger::critical("Skipping path under {}: {}", ToUTF8(dir), ec.message());
+                ec.clear();
             }
-
-            if (stem == "Werewolf") {
-                return Preset::kWerewolf;
-            }
-
-            if (stem == "VampireLord") {
-                return Preset::kVampireLord;
-            }
-
-            return Preset::kVanillaLike;
         }
+
+        return paths;
     }
 
     bool LoadPresetConfiguration(PresetConfig& a_preset, const json& a_data)
@@ -115,7 +70,7 @@ namespace VCD {
             }
 
             if (a_data.contains("position")) {
-                PresetJSON::ReadNiPoint3(a_preset.data.bump.translation, a_data["position"]);
+                JSON::ReadNiPoint3(a_preset.data.bump.translation, a_data["position"]);
             }
 
             if (a_data.contains("radius")) {
@@ -123,11 +78,11 @@ namespace VCD {
             }
 
             if (a_data.contains("firstPoint")) {
-                PresetJSON::ReadVec3(a_preset.data.capsule.point1, a_data["firstPoint"]);
+                JSON::ReadVec3(a_preset.data.capsule.point1, a_data["firstPoint"]);
             }
 
             if (a_data.contains("secondPoint")) {
-                PresetJSON::ReadVec3(a_preset.data.capsule.point2, a_data["secondPoint"]);
+                JSON::ReadVec3(a_preset.data.capsule.point2, a_data["secondPoint"]);
             }
 
             a_preset.data.RecalculateHeight();
@@ -140,18 +95,19 @@ namespace VCD {
         }
     }
 
-    bool LoadPresetConfigurations(std::array<PresetConfig, kPresetCount>& a_presets)
+    // a_presets is already initialized with built-in presets.
+    // Found custom presets will be appended to it.
+    bool LoadPresetConfigurations(std::vector<PresetConfig>& a_presets)
     {
         logger::info("Parsing collision presets..");
 
         auto paths = GetPresetPaths();
-        if (paths.empty()) {
-            return false;
-        }
-
         size_t loadedCount = 0;
+        std::array<bool, kBuiltInPresetCount> loadedPresets{};
+        std::vector<PresetConfig> customPresets{};
 
         for (const auto& path : paths) {
+
             const auto pathStr = ToUTF8(path);
             logger::info("Reading {}", pathStr);
 
@@ -171,33 +127,150 @@ namespace VCD {
                 continue;
             }
 
-            json entries;
-
-            if (data.is_array()) {
-                entries = data;
-            }
-            else if (data.is_object()) {
-                entries = json::array({ data });
-            }
-            else {
-                logger::error("Invalid JSON root in {}", pathStr);
+            if (!data.is_object()) {
+                logger::error("Preset file must contain one JSON object (single preset per file): {}", pathStr);
                 continue;
             }
 
-            for (auto entry : entries) {
-                const auto preset = PresetJSON::PresetFromFileName(path);
-                auto& presetConfig = a_presets[ToUnderlying(preset)];
-                presetConfig.preset = preset;
-                presetConfig.configPath = pathStr;
+            const auto key = ToUTF8(path.stem()); // Filename is our key.
 
-                if (LoadPresetConfiguration(presetConfig, entry)) {
-                    presetConfig.data.Log();
-                    ++loadedCount;
+            // Check for duplicate builtin preset.
+            auto builtIn = std::find_if( a_presets.begin(), a_presets.end(),
+                [&](const PresetConfig& a_config) {
+                    return a_config.key == key;
+                }
+            );
+
+            // Check for duplicate custom preset.
+            auto custom = std::find_if(customPresets.begin(), customPresets.end(),
+                [&](const PresetConfig& a_config) {
+                    return a_config.key == key;
+                }
+            );
+
+            if (custom != customPresets.end()) {
+                logger::error("Duplicate custom preset key {} in {}", key, pathStr);
+                continue;
+            }
+
+            if (builtIn != a_presets.end()) {
+                const auto index = static_cast<size_t>(ToUnderlying(builtIn->preset));
+                if (loadedPresets[index]) {
+                    logger::error("Duplicate built-in preset key {} in {}", key, pathStr);
+                    continue;
                 }
             }
+
+            // For now, preset display name is iinitialized to key.
+            PresetConfig loadedConfig = builtIn != a_presets.end() ? *builtIn : PresetConfig{ Preset::kTotal, key, key, {}, false, false };
+
+            if (!LoadPresetConfiguration(loadedConfig, data)) {
+                continue;
+            }
+
+            if (builtIn != a_presets.end()) {
+                if (loadedConfig.preset == Preset::kVanilla) {
+                    loadedConfig.name = kPresetNames[0];
+                }
+                *builtIn = loadedConfig;
+                const auto index = static_cast<size_t>(ToUnderlying(loadedConfig.preset));
+                loadedPresets[index] = true;
+            }
+            else {
+                customPresets.push_back(loadedConfig);
+            }
+
+            ++loadedCount;
+            loadedConfig.data.Log();
+        }
+
+        const auto& fallbackData = GetVanillaFallbackData();
+        for (size_t i = 0; i < a_presets.size(); ++i) {
+            if (loadedPresets[i]) {
+                continue;
+            }
+
+            auto& presetConfig = a_presets[i];
+            const auto preset = static_cast<Preset>(i);
+            presetConfig.preset = preset;
+            presetConfig.data = fallbackData;
+            presetConfig.loaded = true;
+            presetConfig.name = preset == Preset::kVanilla ? kPresetNames[i] : std::string("Vanilla (") + kPresetNames[i] + " fallback)";
+            logger::warn("{} preset unavailable; using built-in vanilla fallback.", kPresetNames[i]);
+        }
+
+        // Order custom presets in Alp. order.
+        std::sort(customPresets.begin(), customPresets.end(),
+            [](const PresetConfig& a_left, const PresetConfig& a_right) {
+                return a_left.name < a_right.name;
+            }
+        );
+
+        // Append custom presets.
+        for (auto& presetConfig : customPresets) {
+            presetConfig.preset = static_cast<Preset>(a_presets.size()); // New virtual enum id.
+            a_presets.push_back(std::move(presetConfig));
         }
 
         logger::info("Preset parsing finished: {}/{} loaded successfully", loadedCount, a_presets.size());
-        return loadedCount == a_presets.size();
+        return true;
+    }
+
+    std::string MakePresetKey(std::string_view a_name)
+    {
+        std::string key;
+        bool hasAlphaNumeric = false;
+        key.reserve(a_name.size());
+        for (const auto character : a_name) {
+            const auto value = static_cast<unsigned char>(character);
+            if (std::isalnum(value) || character == '_') {
+                key.push_back(character);
+                hasAlphaNumeric = hasAlphaNumeric || std::isalnum(value);
+            }
+        }
+        return hasAlphaNumeric ? key : std::string{};
+    }
+
+    bool SavePresetConfiguration(const PresetConfig& a_preset, std::string& a_error)
+    {
+        const auto dir = GetPresetDir();
+        std::error_code ec;
+        fs::create_directories(dir, ec);
+        if (ec) {
+            a_error = "Could not create the preset directory.";
+            logger::error("Failed to create preset directory {}: {}", ToUTF8(dir), ec.message());
+            return false;
+        }
+
+        // Atomic, safer as we use written presets immedietly in dynamics.
+        const auto path = dir / (a_preset.key + ".json");
+        const auto temporaryPath = path.string() + ".tmp";
+        auto data = JSON::CollisionDataToJson(a_preset.data);
+        data["name"] = a_preset.name;
+
+        {
+            std::ofstream file(temporaryPath, std::ios::trunc);
+            if (!file.is_open()) {
+                a_error = "Could not open the preset file for writing.";
+                return false;
+            }
+
+            file << data.dump(2);
+            if (!file.good()) {
+                a_error = "Could not write the preset file.";
+                return false;
+            }
+        }
+
+        fs::rename(temporaryPath, path, ec);
+        if (ec) {
+            fs::remove(temporaryPath);
+            a_error = "Could not finish saving the preset file.";
+            logger::error("Failed to save preset {}: {}", ToUTF8(path), ec.message());
+            return false;
+        }
+
+        logger::info("Preset saved: {}", ToUTF8(path));
+        return true;
     }
 }

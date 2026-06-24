@@ -19,56 +19,16 @@ namespace VCD {
 
     inline fs::path GetPresetDir()
     {
-        const auto root = GetGameRoot();
-        const auto dataPath = GetPluginDataPath() / "Presets";
-
-        std::error_code ec;
-        if (fs::exists(dataPath, ec) && fs::is_directory(dataPath, ec)) {
-            return dataPath;
-        }
-
-        return root / PRODUCT_NAME / "Presets";
+        return GetPluginDataPath() / "Presets";
     }
 
-    inline std::vector<fs::path> GetPresetPaths()
-    {
-        const auto dir = GetPresetDir();
-        std::vector<fs::path> paths;
-
-        std::error_code ec;
-        if (!fs::exists(dir, ec) || !fs::is_directory(dir, ec)) {
-            logger::critical("Preset directory {} does not exist.", ToUTF8(dir));
-            return paths;
-        }
-
-        auto it = fs::recursive_directory_iterator(dir, fs::directory_options::skip_permission_denied, ec);
-        fs::recursive_directory_iterator end;
-
-        if (ec) {
-            logger::critical("Cannot iterate over {}: {}", ToUTF8(dir), ec.message());
-        }
-
-        while (it != end) {
-            const auto& path = it->path();
-
-            if (fs::is_regular_file(path, ec) && path.extension() == ".json") {
-                logger::info("Found preset file: {}", ToUTF8(path));
-                paths.push_back(path);
-            }
-
-            ec.clear();
-            it.increment(ec);
-
-            if (ec) {
-                logger::critical("Skipping path under {}: {}", ToUTF8(dir), ec.message());
-                ec.clear();
-            }
-        }
-
-        return paths;
-    }
+    std::vector<fs::path> GetPresetPaths();
 
     bool LoadPresetConfiguration(PresetConfig& a_preset, const nlohmann::json& a_data);
 
-    bool LoadPresetConfigurations(std::array<PresetConfig, kPresetCount>& a_presets);
+    bool LoadPresetConfigurations(std::vector<PresetConfig>& a_presets);
+
+    bool SavePresetConfiguration(const PresetConfig& a_preset, std::string& a_error);
+
+    std::string MakePresetKey(std::string_view a_name);
 }

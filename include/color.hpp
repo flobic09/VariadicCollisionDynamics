@@ -18,5 +18,10 @@ namespace UI::Color {
     inline constexpr GUI::ImVec4 kEditFrameBg{ 0.02F, 0.02F, 0.02F, 1.00F };
     inline constexpr GUI::ImVec4 kEditFrameHover{ 0.08F, 0.08F, 0.08F, 1.00F };
     inline constexpr GUI::ImVec4 kEditFrameActive{ 0.12F, 0.12F, 0.12F, 1.00F };
+    inline constexpr GUI::ImVec4 kCreatePresetBG{ 0.20F, 0.16F, 0.10F, 0.96F };
+    inline constexpr GUI::ImVec4 kCreatePresetHover{ 0.38F, 0.29F, 0.15F, 1.00F };
+    inline constexpr GUI::ImVec4 kCreatePresetActive{ 0.28F, 0.21F, 0.11F, 1.00F };
+    inline constexpr GUI::ImVec4 kCreatePresetText{ 1.00F, 0.94F, 0.78F, 1.00F };
+    inline constexpr GUI::ImVec4 kCreatePresetBorder{ 0.68F, 0.53F, 0.29F, 0.90F };
 
 }
