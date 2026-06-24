@@ -67,6 +67,10 @@ bool Manager::SetCollisionData(const RE::Actor* a_actor, const CollisionData& a_
     if (!a_sittingFlags.isSitting || hadStandingCapsule) {
         CacheStandingCapsule(lastActorState, mappedPoint1Z, mappedPoint2Z, mappedRadius);
     }
+    if (!a_sittingFlags.isSitting) {
+        lastActorState.standingTranslation = a_data.bump.translation;
+        lastActorState.hasStandingTranslation = true;
+    }
     if (a_sittingFlags.isSitting) {
         if (!hadStandingCapsule) {
             const auto* name = const_cast<RE::Actor*>(a_actor)->GetDisplayFullName();
@@ -91,11 +95,12 @@ bool Manager::SetCollisionData(const RE::Actor* a_actor, const CollisionData& a_
     worldCapsuleShape->vertexA = mappedVertexA;
     worldCapsuleShape->vertexB = mappedVertexB;
     lastActorState.sittingPoseApplied = a_sittingFlags.isSitting;
+    lastActorState.sneakingPoseApplied = false;
 
     bool convexRebuild = false;
     const auto* player = RE::PlayerCharacter::GetSingleton();
     if (player && a_actor == player) {
-        convexRebuild = SetConvexShape(a_actor, context.controller, a_data, a_name, a_log);
+        convexRebuild = SetConvexShape(a_actor, context.controller, mappedRadius, mappedPoint1Z, mappedPoint2Z, a_data.bump.translation, a_name, a_log);
     }
 
     if (a_log) {
@@ -133,7 +138,10 @@ bool Manager::SetCollisionData(const RE::Actor* a_actor, const CollisionData& a_
     return true;
 }
 
-bool Manager::SetConvexShape(const RE::Actor* a_actor, RE::bhkCharacterController* a_controller, const CollisionData& a_data, const char* a_name, const bool& a_log)
+bool Manager::SetConvexShape(const RE::Actor* a_actor, 
+    RE::bhkCharacterController* a_controller, 
+    const float& a_radius, const float& a_point1Z, const float& a_point2Z, 
+    const RE::NiPoint3& a_translation, const char* a_name, const bool& a_log)
 {
     if (!a_actor || !a_controller) {
         return false;
@@ -161,15 +169,15 @@ bool Manager::SetConvexShape(const RE::Actor* a_actor, RE::bhkCharacterControlle
     }
 
     const auto* refPresetConfig = GetDefaultPresetConfig(Preset::kVanilla);
-    const auto refRadius = refPresetConfig ? refPresetConfig->data.capsule.radius : a_data.capsule.radius;
-    const auto refHeight = refPresetConfig ? std::abs(refPresetConfig->data.capsule.point1.z - refPresetConfig->data.capsule.point2.z) : std::abs(a_data.capsule.point1.z - a_data.capsule.point2.z);
+    const auto refRadius = refPresetConfig ? refPresetConfig->data.capsule.radius : a_radius;
+    const auto refHeight = refPresetConfig ? std::abs(refPresetConfig->data.capsule.point1.z - refPresetConfig->data.capsule.point2.z) : std::abs(a_point1Z - a_point2Z);
     const auto refForward = refPresetConfig ? refPresetConfig->data.bump.translation.y : 0.0F;
     const auto refSide = refPresetConfig ? refPresetConfig->data.bump.translation.x : 0.0F;
-    const auto presetHeight = std::abs(a_data.capsule.point1.z - a_data.capsule.point2.z);
-    const auto radiusMult = refRadius > 0.0F ? a_data.capsule.radius / refRadius : 1.0F;
+    const auto presetHeight = std::abs(a_point1Z - a_point2Z);
+    const auto radiusMult = refRadius > 0.0F ? a_radius / refRadius : 1.0F;
     const auto heightMult = refHeight > 0.0F ? presetHeight / refHeight : 1.0F;
-    const auto forwardOffset = (a_data.bump.translation.y - refForward) * RE::bhkWorld::GetWorldScale();
-    const auto sideOffset = (a_data.bump.translation.x - refSide) * RE::bhkWorld::GetWorldScale();
+    const auto forwardOffset = (a_translation.y - refForward) * RE::bhkWorld::GetWorldScale();
+    const auto sideOffset = (a_translation.x - refSide) * RE::bhkWorld::GetWorldScale();
 
     auto newVertices = state.originalVertices;
     const auto topVertex = state.originalVertices[9];

@@ -110,6 +110,10 @@ namespace VCD {
 
         bool FixSittingPose(const RE::Actor* a_actor, const SittingFlags& a_sittingFlags, const bool& a_log = false);
 
+        bool FixSneakingPose(const RE::Actor* a_actor, const bool& a_isSneaking, const SittingFlags& a_sittingFlags, const bool& a_log = false);
+
+        float GetStandingCapsuleHeight(const RE::Actor* a_actor) const;
+
         size_t GetLoadedPresetCount() const;
 
         bool RestorePresetDefault(const Preset& a_preset);
@@ -176,8 +180,11 @@ namespace VCD {
             float standingPoint1Z{ 0.0F };
             float standingPoint2Z{ 0.0F };
             float standingRadius{ 0.0F };
+            RE::NiPoint3 standingTranslation{};
 			bool hasStandingCapsule{ false };
+            bool hasStandingTranslation{ false };
             bool sittingPoseApplied{ false };
+            bool sneakingPoseApplied{ false };
         };
 
         struct StateScale {
@@ -185,7 +192,7 @@ namespace VCD {
             static constexpr float sneakingScale{ 0.7F };
 		};
 
-        inline float GetCapsuleHeight(const float& a_point1Z, const float& a_point2Z, const float& a_radius)
+        inline float GetCapsuleHeight(const float& a_point1Z, const float& a_point2Z, const float& a_radius) const
         {
             return std::abs(a_point1Z - a_point2Z) + 2.0F * a_radius;
         }
@@ -221,6 +228,21 @@ namespace VCD {
             return GetCapsuleHeight(a_point1Z, a_point2Z, a_radius);
         }
 
+        inline void ApplySneakingCapsule(LastActorState& a_state, float& a_point1Z, float& a_point2Z)
+        {
+            const auto sneakingHeight = GetCapsuleHeight(a_state.standingPoint1Z, a_state.standingPoint2Z, a_state.standingRadius) * StateScale::sneakingScale;
+            const auto sneakingCenterlineHeight = std::max(0.0F, sneakingHeight - 2.0F * a_state.standingRadius);
+
+            if (a_state.standingPoint1Z >= a_state.standingPoint2Z) {
+                a_point2Z = a_state.standingPoint2Z;
+                a_point1Z = a_point2Z + sneakingCenterlineHeight;
+            }
+            else {
+                a_point1Z = a_state.standingPoint1Z;
+                a_point2Z = a_point1Z + sneakingCenterlineHeight;
+            }
+        }
+
         inline void ApplyCapsulePoseHeight(RE::hkpCapsuleShape* a_shape, const float& a_radius, const float& a_point1Z, const float& a_point2Z)
         {
             const auto vertexA = ToNiPoint3(a_shape->vertexA);
@@ -232,7 +254,7 @@ namespace VCD {
         }
 
         // Recompute convex vertices based on capsule shape.
-        bool SetConvexShape(const RE::Actor* a_actor, RE::bhkCharacterController* a_controller, const CollisionData& a_data, const char* a_name, const bool& a_log);
+        bool SetConvexShape(const RE::Actor* a_actor, RE::bhkCharacterController* a_controller, const float& a_radius, const float& a_point1Z, const float& a_point2Z, const RE::NiPoint3& a_translation, const char* a_name, const bool& a_log);
 
         RE::hkpShape* GetControllerRootShape(RE::bhkCharacterController* a_controller) const;
 

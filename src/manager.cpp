@@ -105,6 +105,72 @@ bool Manager::FixSittingPose(const RE::Actor* a_actor, const SittingFlags& a_sit
     return true;
 }
 
+bool Manager::FixSneakingPose(const RE::Actor* a_actor, const bool& a_isSneaking, const SittingFlags& a_sittingFlags, const bool& a_log)
+{
+    ActorBumperContext context{};
+    if (!GetActorBumperContext(a_actor, context, a_log)) {
+        return false;
+    }
+
+    RE::BSWriteLockGuard lock(context.world->worldLock);
+
+    CharacterBumperShape bumperShape{};
+    if (!FindWorldCharacterBumperShapeData(context.controller, bumperShape)) {
+        return false;
+    }
+
+    auto* worldCapsuleShape = bumperShape.capsule;
+    if (!worldCapsuleShape) {
+        return false;
+    }
+
+    auto& lastActorState = actorStates[a_actor->GetFormID()];
+    if (!a_isSneaking) {
+        if (!lastActorState.sneakingPoseApplied || !lastActorState.hasStandingCapsule) {
+            return true;
+        }
+
+        ApplyCapsulePoseHeight(worldCapsuleShape, lastActorState.standingRadius, lastActorState.standingPoint1Z, lastActorState.standingPoint2Z);
+        if (a_actor == RE::PlayerCharacter::GetSingleton() && lastActorState.hasStandingTranslation) {
+            SetConvexShape(a_actor, context.controller, lastActorState.standingRadius, lastActorState.standingPoint1Z, lastActorState.standingPoint2Z, lastActorState.standingTranslation, "sneak_restore", a_log);
+        }
+        lastActorState.sneakingPoseApplied = false;
+        return true;
+    }
+
+    if (a_sittingFlags.isSitting) {
+        return false;
+    }
+
+    if (!lastActorState.hasStandingCapsule) {
+        CacheStandingCapsule(lastActorState, ToNiPoint3(worldCapsuleShape->vertexA).z, ToNiPoint3(worldCapsuleShape->vertexB).z, worldCapsuleShape->radius);
+    }
+
+    auto mappedPoint1Z = lastActorState.standingPoint1Z;
+    auto mappedPoint2Z = lastActorState.standingPoint2Z;
+    ApplySneakingCapsule(lastActorState, mappedPoint1Z, mappedPoint2Z);
+    ApplyCapsulePoseHeight(worldCapsuleShape, lastActorState.standingRadius, mappedPoint1Z, mappedPoint2Z);
+    if (a_actor == RE::PlayerCharacter::GetSingleton() && lastActorState.hasStandingTranslation) {
+        SetConvexShape(a_actor, context.controller, lastActorState.standingRadius, mappedPoint1Z, mappedPoint2Z, lastActorState.standingTranslation, "sneak_crouch", a_log);
+    }
+    lastActorState.sneakingPoseApplied = true;
+    return true;
+}
+
+float Manager::GetStandingCapsuleHeight(const RE::Actor* a_actor) const
+{
+    if (!a_actor) {
+        return 0.0F;
+    }
+
+    const auto it = actorStates.find(a_actor->GetFormID());
+    if (it == actorStates.end() || !it->second.hasStandingCapsule) {
+        return 0.0F;
+    }
+
+    return GetCapsuleHeight(it->second.standingPoint1Z, it->second.standingPoint2Z, it->second.standingRadius) * GetPresetScale();
+}
+
 
 RE::hkpCapsuleShape* Manager::FindWorldCharacterBumperShape(RE::bhkCharacterController* a_controller) const
 {
