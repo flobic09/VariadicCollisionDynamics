@@ -53,7 +53,7 @@ SKSEPluginLoad(const SKSE::LoadInterface* skse)
 
     Hook::PlayerUpdate::Install();
 
-    // Hook::SneakHandlerCanProcess::Install();
+    Hook::SneakHandlerCanProcess::Install(); 
 
     return true;
 }

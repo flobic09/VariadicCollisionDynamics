@@ -13,7 +13,7 @@ namespace Hook {
 
     struct SneakHandlerCanProcess {
 
-        static bool thunk(RE::InputEvent* a_event);
+        static bool thunk(RE::SneakHandler* a_this, RE::InputEvent* a_event);
 
         static inline REL::Relocation<decltype(thunk)> func;
 
