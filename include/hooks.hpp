@@ -11,15 +11,6 @@ namespace Hook {
         static void Install();
     };
 
-    struct SneakHandlerCanProcess {
-
-        static bool thunk(RE::SneakHandler* a_this, RE::InputEvent* a_event);
-
-        static inline REL::Relocation<decltype(thunk)> func;
-
-        static void Install();
-    };
-
     struct SneakHandlerProcessButton {
 
         static void thunk(

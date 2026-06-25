@@ -265,7 +265,7 @@ namespace Dynamics {
 				return actor && actor->GetFormID() == a_actorState.formID;
 			});
 			if (!nearby) {
-				manager.ClearActorRuntimeState(a_actorState.formID);
+				manager.ClearActorTransientState(a_actorState.formID);
 			}
 			return !nearby;
 		});

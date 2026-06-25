@@ -102,6 +102,8 @@ namespace VCD {
 
         void ClearActorRuntimeState(const RE::FormID& a_formID);
 
+        void ClearActorTransientState(const RE::FormID& a_formID);
+
         bool CreatePreset(const std::string& a_name, const CollisionData& a_data, Preset& a_preset, std::string& a_error);
 
         bool SetPreset(const RE::Actor* a_actor, const Preset& a_preset, const PoseFlags& a_poseFlags, const bool& a_log);
@@ -154,6 +156,8 @@ namespace VCD {
         struct ConvexShapeState
         {
             std::vector<RE::hkVector4> originalVertices{};
+            const RE::bhkCharacterController* controller{ nullptr };
+            const RE::hkpConvexVerticesShape* currentShape{ nullptr };
             float originalRadius{ 0.0F };
             bool valid{ false };
         };
@@ -265,7 +269,7 @@ namespace VCD {
 
         bool IsCharacterBumperShape(const RE::hkpShape* a_shape, const RE::hkpShapeKey& a_key) const;
 
-        bool CacheConvexShapeState(const RE::FormID& a_formID, const RE::hkpConvexVerticesShape* a_shape, ConvexShapeState& a_state);
+        bool CacheConvexShapeState(const RE::FormID& a_formID, const RE::bhkCharacterController* a_controller, const RE::hkpConvexVerticesShape* a_shape, ConvexShapeState& a_state);
 
         bool ReplaceControllerConvexShape(RE::bhkCharacterController* a_controller, ConvexShapeData& a_convex, RE::hkpConvexVerticesShape* a_newShape) const;
 

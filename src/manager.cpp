@@ -52,6 +52,12 @@ void Manager::ClearActorRuntimeState(const RE::FormID& a_formID)
     actorStates.erase(a_formID);
 }
 
+void Manager::ClearActorTransientState(const RE::FormID& a_formID)
+{
+    bumperAnchorStates.erase(a_formID);
+    actorStates.erase(a_formID);
+}
+
 bool Manager::SetPreset(const RE::Actor* a_actor, const Preset& a_preset, const PoseFlags& a_poseFlags, const bool& a_log)
 {
     const auto* presetConfig = GetPresetConfig(a_preset);
@@ -452,7 +458,7 @@ bool Manager::FindControllerConvexShape(RE::bhkCharacterController* a_controller
     return a_convex.convexShape;
 }
 
-bool Manager::CacheConvexShapeState(const RE::FormID& a_formID, const RE::hkpConvexVerticesShape* a_shape, ConvexShapeState& a_state)
+bool Manager::CacheConvexShapeState(const RE::FormID& a_formID, const RE::bhkCharacterController* a_controller, const RE::hkpConvexVerticesShape* a_shape, ConvexShapeState& a_state)
 {
     if (a_state.valid) {
         return true;
@@ -465,20 +471,22 @@ bool Manager::CacheConvexShapeState(const RE::FormID& a_formID, const RE::hkpCon
     RE::hkArray<RE::hkVector4> originalVertices{};
     Havok::GetOriginalVertices(a_shape, originalVertices);
     if (originalVertices.empty()) {
-        logger::warn("Player convex cache failed [{:08X}]: original vertices unavailable", a_formID);
+        logger::warn("Actor convex cache failed [{:08X}]: original vertices unavailable", a_formID);
         return false;
     }
 
     a_state.originalVertices.assign(originalVertices.begin(), originalVertices.end());
+    a_state.controller = a_controller;
+    a_state.currentShape = a_shape;
     const auto vertex = ToNiPoint3(a_state.originalVertices[0]);
     a_state.originalRadius = std::sqrt((vertex.x * vertex.x) + (vertex.y * vertex.y));
     a_state.valid = a_state.originalRadius > 0.0F;
     if (!a_state.valid) {
-        logger::warn("Player convex cache failed [{:08X}]: original radius unavailable", a_formID);
+        logger::warn("Actor convex cache failed [{:08X}]: original radius unavailable", a_formID);
         return false;
     }
 
-    logger::debug("Player convex cache [{:08X}]: vertices={}, radius={}", a_formID, a_state.originalVertices.size(), a_state.originalRadius);
+    logger::debug("Actor convex cache [{:08X}]: vertices={}, radius={}", a_formID, a_state.originalVertices.size(), a_state.originalRadius);
     return true;
 }
 

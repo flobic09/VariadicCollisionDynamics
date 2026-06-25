@@ -12,10 +12,6 @@
 using namespace Hook; 
 using namespace DebugAPI_IMPL;
 
-namespace SneakGate {
-	std::atomic_bool blockSneak = false;
-}
-
 void PlayerUpdate::thunk(RE::PlayerCharacter* player, float delta) {
 
 	func(player, delta);
@@ -69,48 +65,6 @@ void PlayerUpdate::Install()
 	logger::info("Player update hook installed.");
 }
 
-bool SneakHandlerCanProcess::thunk(RE::SneakHandler* a_this, RE::InputEvent* a_event) {
-	if (!a_this || !a_event) return func(a_this, a_event);
-
-	auto* player = RE::PlayerCharacter::GetSingleton();
-	if (!player) return func(a_this, a_event);
-	if (!Settings::GetSettings().fixPlayerSneaking) {
-		SneakGate::blockSneak.store(false);
-		return func(a_this, a_event);
-	}
-
-	auto& manager = VCD::Manager::GetSingleton();
-
-//  return if not sneaking 
-    if (!player->IsSneaking())
-        return func(a_this, a_event);
-
-	auto standingHeight = manager.GetStandingCapsuleHeight(player);
-	if (standingHeight <= 0.0F) {
-		standingHeight = player->GetHeight();
-	}
-
-    if (!raycast::canStandUp(standingHeight))
-    {
-        SneakGate::blockSneak.store(true); 
-        return false;
-    }
-    else {
-        SneakGate::blockSneak.store(false);
-    }
-
-    return func(a_this, a_event);
-}
-
-void SneakHandlerCanProcess::Install()
-{
-	constexpr auto dllPath = "Data/SKSE/Plugins/DynamicCollisionAdjustment.dll";
-	// dont install if dynamic collision adjustment is installed
-	if (std::filesystem::exists(dllPath)) return;
-	func = REL::Relocation<std::uintptr_t>(RE::SneakHandler::VTABLE[0]).write_vfunc(0x01, thunk);
-	logger::info("Can Process Sneak hook installed");
-}
-
 // isUp() called only once per sneak key press
 void SneakHandlerProcessButton::thunk(
 	RE::SneakHandler* a_this,
@@ -120,23 +74,31 @@ void SneakHandlerProcessButton::thunk(
 	if (!a_this || !a_event || !a_data)
 		return func(a_this, a_event, a_data);
 	if (!Settings::GetSettings().fixPlayerSneaking) {
-		SneakGate::blockSneak.store(false);
 		return func(a_this, a_event, a_data);
 	}
 
-	if (a_event->IsUp() && !SneakGate::blockSneak.load()) {
+	if (a_event->IsUp()) {
+		auto* player = RE::PlayerCharacter::GetSingleton();
+		if (!player) return func(a_this, a_event, a_data);
+
+		auto& manager = VCD::Manager::GetSingleton();
+		if (player->IsSneaking()) {
+			auto standingHeight = manager.GetStandingCapsuleHeight(player);
+			if (standingHeight <= 0.0F) {
+				standingHeight = player->GetHeight();
+			}
+			if (!raycast::canStandUp(standingHeight)) {
+				return;
+			}
+		}
 
 		// let game process button first so isSneaking() returns valid state
 		func(a_this, a_event, a_data);
-
-		auto* player = RE::PlayerCharacter::GetSingleton();
-		if (!player) return;
 
 		const bool gameIsSneaking = player->IsSneaking();
 
 		logger::info("ProcessButton fired, gameIsSneaking={}", gameIsSneaking);
 
-		auto& manager = VCD::Manager::GetSingleton();
 		const auto poseFlags = PoseFixes::PlayerPose(player);
 		if (gameIsSneaking) {
 			logger::info("player is sneaking, shrinking collision");

@@ -36,16 +36,14 @@ bool Manager::SetCollisionData(const RE::Actor* a_actor, const CollisionData& a_
     auto& lastActorState = actorStates[actorFormID];
     auto& bumperAnchorState = bumperAnchorStates[actorFormID];
     const bool refreshSittingAnchor = !a_poseFlags.isSitting && bumperAnchorState.fromSitting;
+    const bool useStandingAnchor = (a_poseFlags.isSitting || a_poseFlags.isSneaking) && lastActorState.hasStandingCapsule;
     if (!bumperAnchorState.valid || bumperAnchorState.preset != a_anchorPreset || refreshSittingAnchor) {
         if (refreshSittingAnchor) {
             const auto* name = const_cast<RE::Actor*>(a_actor)->GetDisplayFullName();
             logger::debug("Actor: {} [{:08X}] refreshed standing anchor after initial sitting anchor", name ? name : "Actor", actorFormID);
         }
         bumperAnchorState.preset = a_anchorPreset;
-        bumperAnchorState.centerZ = previousCenter.z;
-        if (a_poseFlags.isSitting && lastActorState.hasStandingCapsule) {
-            bumperAnchorState.centerZ = (lastActorState.standingPoint1Z + lastActorState.standingPoint2Z) * 0.5F;
-        }
+        bumperAnchorState.centerZ = useStandingAnchor ? (lastActorState.standingPoint1Z + lastActorState.standingPoint2Z) * 0.5F : previousCenter.z;
         bumperAnchorState.valid = true;
         bumperAnchorState.fromSitting = a_poseFlags.isSitting && !lastActorState.hasStandingCapsule;
     }
@@ -108,10 +106,7 @@ bool Manager::SetCollisionData(const RE::Actor* a_actor, const CollisionData& a_
     lastActorState.sittingPoseApplied = a_poseFlags.isSitting;
     lastActorState.sneakingPoseApplied = isPlayerSneaking || isNPCSneaking;
 
-    bool convexRebuild = false;
-    if (player && a_actor == player) {
-        convexRebuild = SetConvexShape(a_actor, context.controller, mappedRadius, mappedPoint1Z, mappedPoint2Z, a_data.bump.translation, a_name, a_log);
-    }
+    const auto convexRebuild = SetConvexShape(a_actor, context.controller, mappedRadius, mappedPoint1Z, mappedPoint2Z, a_data.bump.translation, a_name, a_log);
 
     if (a_log) {
         logger::info(
@@ -160,20 +155,23 @@ bool Manager::SetConvexShape(const RE::Actor* a_actor,
     ConvexShapeData convex{};
     if (!FindControllerConvexShape(a_controller, convex) || !convex.convexShape) {
         if (a_log) {
-            logger::warn("Player convex rebuild skipped [{}]: convex controller shape unavailable", a_name ? a_name : "Unknown");
+            logger::warn("Actor convex rebuild skipped [{}]: convex controller shape unavailable", a_name ? a_name : "Unknown");
         }
         return false;
     }
 
     const auto formID = a_actor->GetFormID();
     auto& state = convexShapeStates[formID];
-    if (!CacheConvexShapeState(formID, convex.convexShape, state)) {
+    if (state.controller != a_controller || (state.currentShape && state.currentShape != convex.convexShape)) {
+        state = {};
+    }
+    if (!CacheConvexShapeState(formID, a_controller, convex.convexShape, state)) {
         return false;
     }
 
     if (state.originalVertices.size() != 18) {
         if (a_log) {
-            logger::warn("Player convex rebuild skipped [{}]: unsupported vertex count {}", a_name ? a_name : "Unknown", state.originalVertices.size());
+            logger::warn("Actor convex rebuild skipped [{}]: unsupported vertex count {}", a_name ? a_name : "Unknown", state.originalVertices.size());
         }
         return false;
     }
@@ -222,7 +220,7 @@ bool Manager::SetConvexShape(const RE::Actor* a_actor,
     auto* newShape = Havok::AllocateConvexVerticesShape();
     if (!newShape) {
         if (a_log) {
-            logger::warn("Player convex rebuild skipped [{}]: allocation failed", a_name ? a_name : "Unknown");
+            logger::warn("Actor convex rebuild skipped [{}]: allocation failed", a_name ? a_name : "Unknown");
         }
         return false;
     }
@@ -233,13 +231,14 @@ bool Manager::SetConvexShape(const RE::Actor* a_actor,
     if (!ReplaceControllerConvexShape(a_controller, convex, newShape)) {
         newShape->RemoveReference();
         if (a_log) {
-            logger::warn("Player convex rebuild skipped [{}]: replacement failed", a_name ? a_name : "Unknown");
+            logger::warn("Actor convex rebuild skipped [{}]: replacement failed", a_name ? a_name : "Unknown");
         }
         return false;
     }
+    state.currentShape = newShape;
 
     if (a_log) {
-        logger::debug("Player convex rebuild [{}]: vertices={}, radius mult={}, height mult={}, offset=({}, {})", 
+        logger::debug("Actor convex rebuild [{}]: vertices={}, radius mult={}, height mult={}, offset=({}, {})",
             a_name ? a_name : "Unknown", 
             newVertices.size(), 
             radiusMult, 
