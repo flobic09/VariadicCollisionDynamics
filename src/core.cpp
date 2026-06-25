@@ -1,10 +1,11 @@
 #include "manager.hpp"
 #include "havok.hpp"
+#include "settings.hpp"
 
 using namespace VCD;
 
 // Core logic of capsule shaping based on actor's preset and pose.
-bool Manager::SetCollisionData(const RE::Actor* a_actor, const CollisionData& a_data, const Preset& a_anchorPreset, const char* a_name, const SittingFlags& a_sittingFlags, const bool& a_log)
+bool Manager::SetCollisionData(const RE::Actor* a_actor, const CollisionData& a_data, const Preset& a_anchorPreset, const char* a_name, const PoseFlags& a_poseFlags, const bool& a_log)
 {
     ActorBumperContext context{};
     if (!GetActorBumperContext(a_actor, context, a_log)) {
@@ -34,7 +35,7 @@ bool Manager::SetCollisionData(const RE::Actor* a_actor, const CollisionData& a_
     const auto previousPosition = previousCenter * GetPresetScale();
     auto& lastActorState = actorStates[actorFormID];
     auto& bumperAnchorState = bumperAnchorStates[actorFormID];
-    const bool refreshSittingAnchor = !a_sittingFlags.isSitting && bumperAnchorState.fromSitting;
+    const bool refreshSittingAnchor = !a_poseFlags.isSitting && bumperAnchorState.fromSitting;
     if (!bumperAnchorState.valid || bumperAnchorState.preset != a_anchorPreset || refreshSittingAnchor) {
         if (refreshSittingAnchor) {
             const auto* name = const_cast<RE::Actor*>(a_actor)->GetDisplayFullName();
@@ -42,11 +43,11 @@ bool Manager::SetCollisionData(const RE::Actor* a_actor, const CollisionData& a_
         }
         bumperAnchorState.preset = a_anchorPreset;
         bumperAnchorState.centerZ = previousCenter.z;
-        if (a_sittingFlags.isSitting && lastActorState.hasStandingCapsule) {
+        if (a_poseFlags.isSitting && lastActorState.hasStandingCapsule) {
             bumperAnchorState.centerZ = (lastActorState.standingPoint1Z + lastActorState.standingPoint2Z) * 0.5F;
         }
         bumperAnchorState.valid = true;
-        bumperAnchorState.fromSitting = a_sittingFlags.isSitting && !lastActorState.hasStandingCapsule;
+        bumperAnchorState.fromSitting = a_poseFlags.isSitting && !lastActorState.hasStandingCapsule;
     }
 
     const auto mappedRadius = a_data.capsule.radius;
@@ -64,21 +65,31 @@ bool Manager::SetCollisionData(const RE::Actor* a_actor, const CollisionData& a_
     const auto standingHeight = GetCapsuleHeight(mappedPoint1Z, mappedPoint2Z, mappedRadius);
     auto mappedHeight = standingHeight;
     const bool hadStandingCapsule = lastActorState.hasStandingCapsule;
-    if (!a_sittingFlags.isSitting || hadStandingCapsule) {
+    if (!a_poseFlags.isSitting || hadStandingCapsule) {
         CacheStandingCapsule(lastActorState, mappedPoint1Z, mappedPoint2Z, mappedRadius);
     }
-    if (!a_sittingFlags.isSitting) {
+    if (!a_poseFlags.isSitting) {
         lastActorState.standingTranslation = a_data.bump.translation;
         lastActorState.hasStandingTranslation = true;
     }
-    if (a_sittingFlags.isSitting) {
+    if (a_poseFlags.isSitting) {
         if (!hadStandingCapsule) {
             const auto* name = const_cast<RE::Actor*>(a_actor)->GetDisplayFullName();
             logger::debug("Actor: {} [{:08X}] is sitting before standing capsule cache exists; using mapped preset", name ? name : "Actor", actorFormID);
             CacheStandingCapsule(lastActorState, mappedPoint1Z, mappedPoint2Z, mappedRadius);
         }
 
-        mappedHeight = ApplySittingCapsule(lastActorState, mappedPoint1Z, mappedPoint2Z, mappedRadius, a_sittingFlags);
+        const auto* player = RE::PlayerCharacter::GetSingleton();
+        const auto scale = a_actor == player ? Settings::GetSettings().playerSittingScale : Settings::GetSettings().npcSittingScale;
+        mappedHeight = ApplySittingCapsule(lastActorState, mappedPoint1Z, mappedPoint2Z, mappedRadius, a_poseFlags, scale);
+    }
+    const auto* player = RE::PlayerCharacter::GetSingleton();
+    const auto isPlayerSneaking = player && a_actor == player && a_poseFlags.isSneaking && !a_poseFlags.isSitting;
+    const auto isNPCSneaking = player && a_actor != player && a_poseFlags.isSneaking && !a_poseFlags.isSitting;
+    if (isPlayerSneaking || isNPCSneaking) {
+        const auto scale = isPlayerSneaking ? Settings::GetSettings().playerSneakingScale : Settings::GetSettings().npcSneakingScale;
+        ApplySneakingCapsule(lastActorState, mappedPoint1Z, mappedPoint2Z, scale);
+        mappedHeight = GetCapsuleHeight(mappedPoint1Z, mappedPoint2Z, mappedRadius);
     }
 
     // Compute mapped endpoints and their center.
@@ -94,11 +105,10 @@ bool Manager::SetCollisionData(const RE::Actor* a_actor, const CollisionData& a_
     worldCapsuleShape->radius = mappedRadius;
     worldCapsuleShape->vertexA = mappedVertexA;
     worldCapsuleShape->vertexB = mappedVertexB;
-    lastActorState.sittingPoseApplied = a_sittingFlags.isSitting;
-    lastActorState.sneakingPoseApplied = false;
+    lastActorState.sittingPoseApplied = a_poseFlags.isSitting;
+    lastActorState.sneakingPoseApplied = isPlayerSneaking || isNPCSneaking;
 
     bool convexRebuild = false;
-    const auto* player = RE::PlayerCharacter::GetSingleton();
     if (player && a_actor == player) {
         convexRebuild = SetConvexShape(a_actor, context.controller, mappedRadius, mappedPoint1Z, mappedPoint2Z, a_data.bump.translation, a_name, a_log);
     }
@@ -114,7 +124,7 @@ bool Manager::SetCollisionData(const RE::Actor* a_actor, const CollisionData& a_
             "  Radius         : {} -> {}, \n"
             "  Height         : {} -> {}, \n"
             "  Convex Rebuild : {}",
-            a_sittingFlags.isSitting ? "Sitting" : "Standing",
+            a_poseFlags.isSitting ? "Sitting" : "Standing",
             previousPosition.x,
             previousPosition.y,
             previousPosition.z,

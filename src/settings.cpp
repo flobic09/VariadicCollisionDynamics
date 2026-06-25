@@ -41,7 +41,7 @@ namespace Settings {
 
 	bool ToolsSettingsEqual(const VCDSettings& a_left, const VCDSettings& a_right)
 	{
-		if (!(FOREACH_TOOL_BOOL_SETTING(SETTING2EQ) FOREACH_FLOAT_SETTING(SETTING2EQ) FOREACH_INT_SETTING(SETTING2EQ) true)) {
+		if (!(FOREACH_TOOL_BOOL_SETTING(SETTING2EQ) FOREACH_TOOL_FLOAT_SETTING(SETTING2EQ) FOREACH_INT_SETTING(SETTING2EQ) true)) {
 			return false;
 		}
 
@@ -51,7 +51,7 @@ namespace Settings {
 	void CopyToolsSettings(VCDSettings& a_target, const VCDSettings& a_source)
 	{
 		FOREACH_TOOL_BOOL_SETTING(SETTING2COPY)
-		FOREACH_FLOAT_SETTING(SETTING2COPY)
+		FOREACH_TOOL_FLOAT_SETTING(SETTING2COPY)
 		FOREACH_INT_SETTING(SETTING2COPY)
 		FOREACH_COLOR_SETTING(SETTING2COPY_COLOR)
 	}
@@ -93,12 +93,13 @@ namespace Settings {
 
 	bool PoseFixesSettingsEqual(const VCDSettings& a_left, const VCDSettings& a_right)
 	{
-		return FOREACH_POSE_FIX_BOOL_SETTING(SETTING2EQ) true;
+		return FOREACH_POSE_FIX_BOOL_SETTING(SETTING2EQ) FOREACH_POSE_FIX_FLOAT_SETTING(SETTING2EQ) true;
 	}
 
 	void CopyPoseFixesSettings(VCDSettings& a_target, const VCDSettings& a_source)
 	{
 		FOREACH_POSE_FIX_BOOL_SETTING(SETTING2COPY)
+		FOREACH_POSE_FIX_FLOAT_SETTING(SETTING2COPY)
 	}
 
 	bool WriteJsonFile(const fs::path& a_path, const JSON::json& a_json, const char* a_label)

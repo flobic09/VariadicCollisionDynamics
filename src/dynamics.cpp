@@ -152,7 +152,7 @@ namespace Dynamics {
 		}
 
 		const auto formID = a_actor->GetFormID();
-		const auto sittingFlags = PoseFixes::NPCSitting(a_actor);
+		const auto poseFlags = PoseFixes::NPCPose(a_actor);
 		auto* actorState = FindNPCPresetState(formID);
 		auto* controller = a_actor->GetCharController();
 		const auto* name = a_actor->GetDisplayFullName();
@@ -160,16 +160,16 @@ namespace Dynamics {
 		if (actorState && actorState->controller != controller) {
 			VCD::Manager::GetSingleton().ClearActorRuntimeState(formID);
 		}
-		if (sittingFlags.isSitting && !actorState) {
+		if (poseFlags.isSitting && !actorState) {
 			logger::debug("NPC: {} [{:08X}] first tracked while sitting", name ? name : "Actor", formID);
 		}
-		if (actorState && actorState->controller == controller && actorState->preset == a_preset && std::strcmp(actorState->stateName, a_stateName) == 0 && actorState->sittingFlags == sittingFlags) {
+		if (actorState && actorState->controller == controller && actorState->preset == a_preset && std::strcmp(actorState->stateName, a_stateName) == 0 && actorState->poseFlags == poseFlags) {
 			return true;
 		}
 
 		auto& manager = VCD::Manager::GetSingleton();
 		const auto* collisionData = GetNPCCollisionData(formID, a_preset);
-		if (!collisionData || !manager.SetCollisionData(a_actor, *collisionData, a_preset, VCD::PresetName(a_preset), sittingFlags, false)) {
+		if (!collisionData || !manager.SetCollisionData(a_actor, *collisionData, a_preset, VCD::PresetName(a_preset), poseFlags, false)) {
 			return false;
 		}
 
@@ -184,7 +184,7 @@ namespace Dynamics {
 		actorState->controller = controller;
 		actorState->preset = a_preset;
 		actorState->stateName = a_stateName;
-		actorState->sittingFlags = sittingFlags;
+		actorState->poseFlags = poseFlags;
 
 		logger::debug("NPC: {} [{:08X}] -> {}, applied preset [{}]", name ? name : "Actor", formID, a_stateName, VCD::PresetName(a_preset));
 		return true;
@@ -219,9 +219,9 @@ namespace Dynamics {
 			GetNPCDynamicsState().nearbyActors.push_back(a_handle);
 		}
 
-		const auto sittingFlags = PoseFixes::NPCSitting(actor);
-		const auto applied = VCD::Manager::GetSingleton().FixSittingPose(actor, sittingFlags, false);
-		if (applied && sittingFlags.isSitting) {
+		const auto poseFlags = PoseFixes::NPCPose(actor);
+		const auto applied = VCD::Manager::GetSingleton().FixSittingPose(actor, poseFlags, false);
+		if (applied && poseFlags.isSitting) {
 			TrackPoseFixedNPC(actor);
 		}
 
@@ -301,7 +301,7 @@ namespace Dynamics {
 			return true;
 		}
 
-		VCD::Manager::GetSingleton().SetPreset(a_player, a_preset, state.sittingFlags, false);
+		VCD::Manager::GetSingleton().SetPreset(a_player, a_preset, state.poseFlags, false);
 		state.nextTransitionRetry = now + std::chrono::duration_cast<std::chrono::steady_clock::duration>(kTransitionRetryInterval);
 		return true;
 	}
@@ -314,13 +314,13 @@ namespace Dynamics {
 
 		auto& state = GetPresetState();
 		auto& preview = GetPreviewState();
-		const auto sittingFlags = PoseFixes::PlayerSitting(a_player);
-		if (!a_force && !preview.active && state.applied && state.current == a_preset && std::strcmp(state.stateName, a_state) == 0 && state.sittingFlags == sittingFlags) {
+		const auto poseFlags = PoseFixes::PlayerPose(a_player);
+		if (!a_force && !preview.active && state.applied && state.current == a_preset && std::strcmp(state.stateName, a_state) == 0 && state.poseFlags == poseFlags) {
 			return true;
 		}
 
 		auto& manager = VCD::Manager::GetSingleton();
-		if (!manager.SetPreset(a_player, a_preset, sittingFlags, true)) {
+		if (!manager.SetPreset(a_player, a_preset, poseFlags, true)) {
 			return false;
 		}
 
@@ -332,7 +332,7 @@ namespace Dynamics {
 		state.current = a_preset;
 		state.applied = true;
 		state.stateName = a_state;
-		state.sittingFlags = sittingFlags;
+		state.poseFlags = poseFlags;
 		StartTransitionRetry(state, a_state);
 		return true;
 	}
@@ -353,8 +353,8 @@ namespace Dynamics {
 			return false;
 		}
 
-		const auto sittingFlags = PoseFixes::PlayerSitting(a_player);
-		if (!VCD::Manager::GetSingleton().SetPreset(a_player, a_preset, sittingFlags, true)) {
+		const auto poseFlags = PoseFixes::PlayerPose(a_player);
+		if (!VCD::Manager::GetSingleton().SetPreset(a_player, a_preset, poseFlags, true)) {
 			return false;
 		}
 
@@ -374,8 +374,8 @@ namespace Dynamics {
 
 		auto& manager = VCD::Manager::GetSingleton();
 		const auto* collisionData = GetNPCCollisionData(a_actor->GetFormID(), a_preset);
-		const auto sittingFlags = PoseFixes::NPCSitting(a_actor);
-		if (!collisionData || !manager.SetCollisionData(a_actor, *collisionData, a_preset, VCD::PresetName(a_preset), sittingFlags, false)) {
+		const auto poseFlags = PoseFixes::NPCPose(a_actor);
+		if (!collisionData || !manager.SetCollisionData(a_actor, *collisionData, a_preset, VCD::PresetName(a_preset), poseFlags, false)) {
 			return false;
 		}
 
@@ -412,15 +412,15 @@ namespace Dynamics {
 			const auto* defaultPresetConfig = manager.GetDefaultPresetConfig(preset);
 			collisionData = defaultPresetConfig ? &defaultPresetConfig->data : nullptr;
 		}
-		const auto sittingFlags = PoseFixes::NPCSitting(actor);
+		const auto poseFlags = PoseFixes::NPCPose(actor);
 		if (collisionData) {
-			manager.SetCollisionData(actor, *collisionData, preset, VCD::PresetName(preset), sittingFlags, false);
+			manager.SetCollisionData(actor, *collisionData, preset, VCD::PresetName(preset), poseFlags, false);
 		}
 		if (auto* actorState = FindNPCPresetState(actor->GetFormID())) {
 			actorState->controller = actor->GetCharController();
 			actorState->preset = preset;
 			actorState->stateName = stateName;
-			actorState->sittingFlags = sittingFlags;
+			actorState->poseFlags = poseFlags;
 		}
 	}
 
@@ -433,8 +433,8 @@ namespace Dynamics {
 			auto actorPtr = actorState.actor.get();
 			auto* actor = actorPtr.get();
 			if (actor && defaultPresetConfig) {
-				const auto sittingFlags = PoseFixes::NPCSitting(actor);
-				manager.SetCollisionData(actor, defaultPresetConfig->data, VCD::Preset::kVanilla, VCD::PresetName(VCD::Preset::kVanilla), sittingFlags, false);
+				const auto poseFlags = PoseFixes::NPCPose(actor);
+				manager.SetCollisionData(actor, defaultPresetConfig->data, VCD::Preset::kVanilla, VCD::PresetName(VCD::Preset::kVanilla), poseFlags, false);
 			}
 		}
 
@@ -542,7 +542,7 @@ namespace Dynamics {
 			RestorePresetPreview(a_player);
 		}
 
-		const auto sittingFlags = PoseFixes::PlayerSitting(a_player);
+		const auto poseFlags = PoseFixes::PlayerPose(a_player);
 		const auto* stateName = GetCellStateName(cell);
 		auto preset = GetCellPreset(cell);
 
@@ -559,7 +559,7 @@ namespace Dynamics {
 			preset = GetConfig().combat;
 		}
 
-		if (!forceApply && state.lastCell == cell && state.applied && state.current == preset && std::strcmp(state.stateName, stateName) == 0 && state.sittingFlags == sittingFlags) {
+		if (!forceApply && state.lastCell == cell && state.applied && state.current == preset && std::strcmp(state.stateName, stateName) == 0 && state.poseFlags == poseFlags) {
 			RetryTransitionPreset(a_player, preset, stateName);
 			return;
 		}
@@ -586,7 +586,7 @@ namespace Dynamics {
 				RestoreNPCsToVanilla();
 			}
 
-			if (!settings.enablePoseFixes || !settings.fixNPCSitting) {
+			if (!settings.fixNPCSitting) {
 				if (!state.poseFixedActors.empty()) {
 					RestoreNPCPoseFixes();
 				}

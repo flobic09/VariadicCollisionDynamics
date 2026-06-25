@@ -341,7 +341,7 @@ namespace UI {
                 BeginAutoDraw();
                 editor.current.RecalculateHeight();
                 Settings::MarkNPCActorPresetEdited(actor->GetFormID(), GetActorName(actor), editor.preset, editor.current);
-                manager.SetCollisionData(actor, editor.current, editor.preset, VCD::PresetName(editor.preset), PoseFixes::NPCSitting(actor), false);
+                manager.SetCollisionData(actor, editor.current, editor.preset, VCD::PresetName(editor.preset), PoseFixes::NPCPose(actor), false);
             }
         }
         else if (editor.npcGlobal) {
@@ -362,7 +362,7 @@ namespace UI {
 
             if (Dynamics::IsPresetCurrent(editor.preset)) {
                 BeginAutoDraw();
-                manager.SetPreset(player, editor.preset, PoseFixes::PlayerSitting(player), true);
+                manager.SetPreset(player, editor.preset, PoseFixes::PlayerPose(player), true);
             }
             else if (editor.preview) {
                 BeginAutoDraw();
@@ -381,7 +381,7 @@ namespace UI {
         if (const auto* player = RE::PlayerCharacter::GetSingleton()) {
             const auto& state = Dynamics::GetPresetState();
             if (state.applied) {
-                VCD::Manager::GetSingleton().SetPreset(player, state.current, PoseFixes::PlayerSitting(player), true);
+                VCD::Manager::GetSingleton().SetPreset(player, state.current, PoseFixes::PlayerPose(player), true);
             }
             else {
                 Dynamics::ApplyEnvironmentPreset(player, true);
@@ -405,7 +405,7 @@ namespace UI {
                 editor.current,
                 VCD::Preset::kVanilla,
                 "New Preset",
-                PoseFixes::PlayerSitting(player),
+                PoseFixes::PlayerPose(player),
                 false
             );
         }
@@ -739,7 +739,7 @@ namespace UI {
                     BeginAutoDraw();
                     Settings::ClearNPCActorPresetEdited(actor->GetFormID(), editor.preset);
                     editor.current = editor.defaults;
-                    manager.SetCollisionData(actor, editor.current, editor.preset, VCD::PresetName(editor.preset), PoseFixes::NPCSitting(actor), false);
+                    manager.SetCollisionData(actor, editor.current, editor.preset, VCD::PresetName(editor.preset), PoseFixes::NPCPose(actor), false);
                 }
             }
             else if (editor.npcGlobal) {
@@ -759,7 +759,7 @@ namespace UI {
                 editor.current = editor.defaults;
                 if (Dynamics::IsPresetCurrent(editor.preset)) {
                     BeginAutoDraw();
-                    manager.SetPreset(player, editor.preset, PoseFixes::PlayerSitting(player), true);
+                    manager.SetPreset(player, editor.preset, PoseFixes::PlayerPose(player), true);
                 }
                 else if (editor.preview) {
                     BeginAutoDraw();
@@ -901,12 +901,12 @@ namespace UI {
                     auto actorPtr = editor.previewActor.get();
                     auto* actor = actorPtr.get();
                     if (actor) {
-                        VCD::Manager::GetSingleton().SetCollisionData(actor, editor.current, editor.preset, VCD::PresetName(editor.preset), PoseFixes::NPCSitting(actor), false);
+                        VCD::Manager::GetSingleton().SetCollisionData(actor, editor.current, editor.preset, VCD::PresetName(editor.preset), PoseFixes::NPCPose(actor), false);
                     }
                 }
                 else if (editor.npcGlobal) {
                     if (auto* actor = GetSelectedNPCActorPtr()) {
-                        VCD::Manager::GetSingleton().SetCollisionData(actor, editor.current, editor.preset, VCD::PresetName(editor.preset), PoseFixes::NPCSitting(actor), false);
+                        VCD::Manager::GetSingleton().SetCollisionData(actor, editor.current, editor.preset, VCD::PresetName(editor.preset), PoseFixes::NPCPose(actor), false);
                     }
                 }
                 else {

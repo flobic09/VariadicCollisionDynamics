@@ -16,21 +16,32 @@
 	S(enableNPCDynamics, false)
 
 #define FOREACH_POSE_FIX_BOOL_SETTING(S) \
-	S(enablePoseFixes, true) \
 	S(fixPlayerSitting, true) \
-	S(fixNPCSitting, true)
+	S(fixNPCSitting, true) \
+	S(fixPlayerSneaking, true) \
+	S(fixNPCSneaking, true)
 
 #define FOREACH_BOOL_SETTING(S) \
 	FOREACH_TOOL_BOOL_SETTING(S) \
 	FOREACH_DYNAMICS_BOOL_SETTING(S) \
 	FOREACH_POSE_FIX_BOOL_SETTING(S)
 
-#define FOREACH_FLOAT_SETTING(S) \
+#define FOREACH_TOOL_FLOAT_SETTING(S) \
 	S(drawLineThickness, 1.2F) \
 	S(drawNPCLineThickness, 1.2F) \
 	S(previewRestoreDelay, 3.0F) \
 	S(nearbyActorDrawRadius, 1500.0F) \
 	S(nearbyActorScanInterval, 0.5F)
+
+#define FOREACH_POSE_FIX_FLOAT_SETTING(S) \
+	S(playerSittingScale, 0.65F) \
+	S(npcSittingScale, 0.65F) \
+	S(playerSneakingScale, 0.7F) \
+	S(npcSneakingScale, 0.7F)
+
+#define FOREACH_FLOAT_SETTING(S) \
+	FOREACH_TOOL_FLOAT_SETTING(S) \
+	FOREACH_POSE_FIX_FLOAT_SETTING(S)
 
 #define FOREACH_INT_SETTING(S) \
 	S(logLevel, 1) \

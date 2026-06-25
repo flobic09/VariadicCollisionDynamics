@@ -12,12 +12,13 @@ namespace VCD {
 
     namespace fs = std::filesystem;
 
-    struct SittingFlags
+    struct PoseFlags
     {
         bool isSitting{ false };
         bool isChildSittingOnKnees{ false };
+        bool isSneaking{ false };
 
-        bool operator==(const SittingFlags&) const = default;
+        bool operator==(const PoseFlags&) const = default;
     };
 
     inline std::string ToUTF8(const fs::path& a_path)

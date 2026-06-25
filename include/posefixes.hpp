@@ -47,36 +47,53 @@ namespace PoseFixes {
             (eventName && VCD::ContainsInsensitive(eventName, "ChildSitOnKnees"));
     }
 
-    inline VCD::SittingFlags GetSittingFlags(const RE::Actor* a_actor)
+    inline VCD::PoseFlags GetPoseFlags(const RE::Actor* a_actor)
     {
+        VCD::PoseFlags poseFlags{};
+        poseFlags.isSneaking = a_actor && a_actor->IsSneaking();
+
         const auto* actorState = a_actor ? a_actor->AsActorState() : nullptr;
         if (!actorState || !actorState->IsSitting()) {
-            return {};
+            return poseFlags;
         }
 
         if (IsSittingFurnitureName(VCD::GetOccupiedFurnitureName(a_actor))) {
-            return { true, false };
+            poseFlags.isSitting = true;
+            return poseFlags;
         }
 
-        const auto isChildSittingOnKnees = IsChildSittingOnKnees(a_actor);
-        return { isChildSittingOnKnees, isChildSittingOnKnees };
+        poseFlags.isChildSittingOnKnees = IsChildSittingOnKnees(a_actor);
+        poseFlags.isSitting = poseFlags.isChildSittingOnKnees;
+        return poseFlags;
     }
 
     inline bool IsReallySitting(const RE::Actor* a_actor)
     {
-        return GetSittingFlags(a_actor).isSitting;
+        return GetPoseFlags(a_actor).isSitting;
     }
 
-	inline VCD::SittingFlags PlayerSitting(const RE::Actor* a_actor)
+	inline VCD::PoseFlags PlayerPose(const RE::Actor* a_actor)
 	{
 		const auto& settings = Settings::GetSettings();
-		return settings.enablePoseFixes && settings.fixPlayerSitting ? GetSittingFlags(a_actor) : VCD::SittingFlags{};
+		auto poseFlags = GetPoseFlags(a_actor);
+		if (!settings.fixPlayerSitting) {
+			poseFlags.isSitting = false;
+			poseFlags.isChildSittingOnKnees = false;
+		}
+		poseFlags.isSneaking = settings.fixPlayerSneaking && poseFlags.isSneaking;
+		return poseFlags;
 	}
 
-	inline VCD::SittingFlags NPCSitting(const RE::Actor* a_actor)
+	inline VCD::PoseFlags NPCPose(const RE::Actor* a_actor)
 	{
 		const auto& settings = Settings::GetSettings();
-		return settings.enablePoseFixes && settings.fixNPCSitting ? GetSittingFlags(a_actor) : VCD::SittingFlags{};
+		auto poseFlags = GetPoseFlags(a_actor);
+		if (!settings.fixNPCSitting) {
+			poseFlags.isSitting = false;
+			poseFlags.isChildSittingOnKnees = false;
+		}
+		poseFlags.isSneaking = settings.enableNPCDynamics && settings.fixNPCSneaking && poseFlags.isSneaking;
+		return poseFlags;
 	}
 
 }

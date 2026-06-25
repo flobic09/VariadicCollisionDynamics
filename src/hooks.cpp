@@ -35,17 +35,13 @@ void PlayerUpdate::thunk(RE::PlayerCharacter* player, float delta) {
 		logger::info("player is sneaking on startup = {}", playerIsSneaking);
 
 		//set playerIsSneaking when first loaded
-		if (playerIsSneaking) {
+		if (playerIsSneaking && Settings::GetSettings().fixPlayerSneaking) {
 			auto& manager = VCD::Manager::GetSingleton();
-			const auto sittingFlags = PoseFixes::PlayerSitting(player); 
-			manager.FixSneakingPose(player, true, sittingFlags, false);
+			manager.FixSneakingPose(player, PoseFixes::PlayerPose(player), false);
 		}
 	}
 
-	// block if player is sneaking. (we should think of situations where this might break stuff) 
-	if (!player->IsSneaking()) {
-		Dynamics::Update(player);
-	}
+	Dynamics::Update(player);
 
 	Dynamics::UpdateNPCs(player);
 
@@ -78,9 +74,12 @@ bool SneakHandlerCanProcess::thunk(RE::SneakHandler* a_this, RE::InputEvent* a_e
 
 	auto* player = RE::PlayerCharacter::GetSingleton();
 	if (!player) return func(a_this, a_event);
+	if (!Settings::GetSettings().fixPlayerSneaking) {
+		SneakGate::blockSneak.store(false);
+		return func(a_this, a_event);
+	}
 
 	auto& manager = VCD::Manager::GetSingleton();
-	const auto sittingFlags = PoseFixes::PlayerSitting(player);
 
 //  return if not sneaking 
     if (!player->IsSneaking())
@@ -120,6 +119,10 @@ void SneakHandlerProcessButton::thunk(
 {
 	if (!a_this || !a_event || !a_data)
 		return func(a_this, a_event, a_data);
+	if (!Settings::GetSettings().fixPlayerSneaking) {
+		SneakGate::blockSneak.store(false);
+		return func(a_this, a_event, a_data);
+	}
 
 	if (a_event->IsUp() && !SneakGate::blockSneak.load()) {
 
@@ -134,16 +137,14 @@ void SneakHandlerProcessButton::thunk(
 		logger::info("ProcessButton fired, gameIsSneaking={}", gameIsSneaking);
 
 		auto& manager = VCD::Manager::GetSingleton();
-		const auto sittingFlags = PoseFixes::PlayerSitting(player);
-
+		const auto poseFlags = PoseFixes::PlayerPose(player);
 		if (gameIsSneaking) {
 			logger::info("player is sneaking, shrinking collision");
-			manager.FixSneakingPose(player, true, sittingFlags, false);
 		}
 		else {
 			logger::info("player stood up, restoring collision");
-			manager.FixSneakingPose(player, false, sittingFlags, false);
 		}
+		manager.FixSneakingPose(player, poseFlags, false);
 
 		return; // already called func above
 	}

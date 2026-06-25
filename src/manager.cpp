@@ -5,6 +5,7 @@
 #include "helper.hpp"
 #include "plugin.hpp"
 #include "posefixes.hpp"
+#include "settings.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -51,17 +52,17 @@ void Manager::ClearActorRuntimeState(const RE::FormID& a_formID)
     actorStates.erase(a_formID);
 }
 
-bool Manager::SetPreset(const RE::Actor* a_actor, const Preset& a_preset, const SittingFlags& a_sittingFlags, const bool& a_log)
+bool Manager::SetPreset(const RE::Actor* a_actor, const Preset& a_preset, const PoseFlags& a_poseFlags, const bool& a_log)
 {
     const auto* presetConfig = GetPresetConfig(a_preset);
     if (!presetConfig) {
         return false;
     }
 
-    return SetCollisionData(a_actor, presetConfig->data, a_preset, presetConfig->name.c_str(), a_sittingFlags, a_log);
+    return SetCollisionData(a_actor, presetConfig->data, a_preset, presetConfig->name.c_str(), a_poseFlags, a_log);
 }
 
-bool Manager::FixSittingPose(const RE::Actor* a_actor, const SittingFlags& a_sittingFlags, const bool& a_log)
+bool Manager::FixSittingPose(const RE::Actor* a_actor, const PoseFlags& a_poseFlags, const bool& a_log)
 {
     ActorBumperContext context{};
     if (!GetActorBumperContext(a_actor, context, a_log)) {
@@ -83,7 +84,7 @@ bool Manager::FixSittingPose(const RE::Actor* a_actor, const SittingFlags& a_sit
     const auto actorFormID = a_actor->GetFormID();
     auto& lastActorState = actorStates[actorFormID];
 
-    if (!a_sittingFlags.isSitting) {
+    if (!a_poseFlags.isSitting) {
         if (!lastActorState.sittingPoseApplied || !lastActorState.hasStandingCapsule) {
             return true;
         }
@@ -99,13 +100,15 @@ bool Manager::FixSittingPose(const RE::Actor* a_actor, const SittingFlags& a_sit
 
     auto mappedPoint1Z = lastActorState.standingPoint1Z;
     auto mappedPoint2Z = lastActorState.standingPoint2Z;
-    ApplySittingCapsule(lastActorState, mappedPoint1Z, mappedPoint2Z, lastActorState.standingRadius, a_sittingFlags);
+    const auto* player = RE::PlayerCharacter::GetSingleton();
+    const auto scale = a_actor == player ? Settings::GetSettings().playerSittingScale : Settings::GetSettings().npcSittingScale;
+    ApplySittingCapsule(lastActorState, mappedPoint1Z, mappedPoint2Z, lastActorState.standingRadius, a_poseFlags, scale);
     ApplyCapsulePoseHeight(worldCapsuleShape, lastActorState.standingRadius, mappedPoint1Z, mappedPoint2Z);
     lastActorState.sittingPoseApplied = true;
     return true;
 }
 
-bool Manager::FixSneakingPose(const RE::Actor* a_actor, const bool& a_isSneaking, const SittingFlags& a_sittingFlags, const bool& a_log)
+bool Manager::FixSneakingPose(const RE::Actor* a_actor, const PoseFlags& a_poseFlags, const bool& a_log)
 {
     ActorBumperContext context{};
     if (!GetActorBumperContext(a_actor, context, a_log)) {
@@ -125,7 +128,7 @@ bool Manager::FixSneakingPose(const RE::Actor* a_actor, const bool& a_isSneaking
     }
 
     auto& lastActorState = actorStates[a_actor->GetFormID()];
-    if (!a_isSneaking) {
+    if (!a_poseFlags.isSneaking) {
         if (!lastActorState.sneakingPoseApplied || !lastActorState.hasStandingCapsule) {
             return true;
         }
@@ -138,7 +141,7 @@ bool Manager::FixSneakingPose(const RE::Actor* a_actor, const bool& a_isSneaking
         return true;
     }
 
-    if (a_sittingFlags.isSitting) {
+    if (a_poseFlags.isSitting) {
         return false;
     }
 
@@ -148,7 +151,7 @@ bool Manager::FixSneakingPose(const RE::Actor* a_actor, const bool& a_isSneaking
 
     auto mappedPoint1Z = lastActorState.standingPoint1Z;
     auto mappedPoint2Z = lastActorState.standingPoint2Z;
-    ApplySneakingCapsule(lastActorState, mappedPoint1Z, mappedPoint2Z);
+    ApplySneakingCapsule(lastActorState, mappedPoint1Z, mappedPoint2Z, Settings::GetSettings().playerSneakingScale);
     ApplyCapsulePoseHeight(worldCapsuleShape, lastActorState.standingRadius, mappedPoint1Z, mappedPoint2Z);
     if (a_actor == RE::PlayerCharacter::GetSingleton() && lastActorState.hasStandingTranslation) {
         SetConvexShape(a_actor, context.controller, lastActorState.standingRadius, mappedPoint1Z, mappedPoint2Z, lastActorState.standingTranslation, "sneak_crouch", a_log);

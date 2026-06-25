@@ -62,7 +62,7 @@ namespace UI {
     inline void PreviewPreset(const VCD::Preset& a_preset)
     {
         if (const auto* player = RE::PlayerCharacter::GetSingleton()) {
-            logger::info("Preset preview result: {}", VCD::Manager::GetSingleton().SetPreset(player, a_preset, PoseFixes::PlayerSitting(player), true));
+            logger::info("Preset preview result: {}", VCD::Manager::GetSingleton().SetPreset(player, a_preset, PoseFixes::PlayerPose(player), true));
         }
     }
 

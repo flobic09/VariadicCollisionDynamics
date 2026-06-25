@@ -21,7 +21,7 @@ namespace Dynamics {
 
 		const char* stateName{ "unknown" };
 
-		VCD::SittingFlags sittingFlags{};
+		VCD::PoseFlags poseFlags{};
 
 		// Retry mechanism for player transformations.
 		bool transitionRetryActive{ false };
@@ -66,7 +66,7 @@ namespace Dynamics {
 
 		const char* stateName{ "unknown" };
 
-		VCD::SittingFlags sittingFlags{};
+		VCD::PoseFlags poseFlags{};
 	};
 
 	struct NPCDynamicsState

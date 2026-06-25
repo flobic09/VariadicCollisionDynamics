@@ -42,17 +42,16 @@ bool raycast::castRay(RE::bhkWorld* world, RE::NiPoint3 start, RE::NiPoint3 end,
 
 	// debugging
 	float totalDistance = start.GetDistance(end);
-	float hitDistance = totalDistance * pickData.rayOutput.hitFraction;
 
-	// get mesh of what we hit (I think down to the tri shape that we hit so section of a mesh
+	// Get mesh of what we hit (I think down to the tri shape that we hit so section of a mesh)
 	auto* niObj = RE::TES::GetSingleton()->Pick(pickData);
 	if (!niObj || niObj->name.empty())
 		return false;
 
-	logger::info(
-		"mesh above player blocking standing: {} (distance {:.2f})",
+	logger::debug(
+		"Mesh above player blocking standing: {} (distance {:.2f})",
 		niObj->name.c_str(),
-		hitDistance);
+		totalDistance * pickData.rayOutput.hitFraction);
 
 	return true; 
 }
@@ -71,23 +70,17 @@ bool raycast::castRay(RE::bhkWorld* world, RE::NiPoint3 start, RE::NiPoint3 end,
 	 // get current position
 	 RE::NiPoint3 playerPos = player->GetPosition();
 
-	 //apply tiny offset to avoid hitting bumpy terrain
-	 playerPos.z += 50; 
-
-	 // subtract z offset applied to player pos above
-	 a_standingHeight -= 50.0f; 
-
-	 //start the ray from players current position (may need to adjust this if Z is not ground level) 
+	 // Start the ray from players current position.
 	 RE::NiPoint3 start = playerPos;
 	 RE::NiPoint3 end = playerPos;
 
-	 // set max distance of ray to the players height, subtract z offset from earlier
+	 // Height cannot be changed here to not intervene with dynamics.
 	 end.z += a_standingHeight;
 
 	 // see if anything blocking
 	 bool canNotStandUp = raycast::castRay(world, start, end, RE::COL_LAYER::kLOS);
 	 
-	 //DEBUG lines to view the ray 
+	 // DEBUG lines to view the ray 
 	 
 	/* if (canNotStandUp) {
 		

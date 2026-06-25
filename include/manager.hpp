@@ -104,13 +104,13 @@ namespace VCD {
 
         bool CreatePreset(const std::string& a_name, const CollisionData& a_data, Preset& a_preset, std::string& a_error);
 
-        bool SetPreset(const RE::Actor* a_actor, const Preset& a_preset, const SittingFlags& a_sittingFlags, const bool& a_log);
+        bool SetPreset(const RE::Actor* a_actor, const Preset& a_preset, const PoseFlags& a_poseFlags, const bool& a_log);
 
-        bool SetCollisionData(const RE::Actor* a_actor, const CollisionData& a_data, const Preset& a_anchorPreset, const char* a_name, const SittingFlags& a_sittingFlags, const bool& a_log);
+        bool SetCollisionData(const RE::Actor* a_actor, const CollisionData& a_data, const Preset& a_anchorPreset, const char* a_name, const PoseFlags& a_poseFlags, const bool& a_log);
 
-        bool FixSittingPose(const RE::Actor* a_actor, const SittingFlags& a_sittingFlags, const bool& a_log = false);
+        bool FixSittingPose(const RE::Actor* a_actor, const PoseFlags& a_poseFlags, const bool& a_log = false);
 
-        bool FixSneakingPose(const RE::Actor* a_actor, const bool& a_isSneaking, const SittingFlags& a_sittingFlags, const bool& a_log = false);
+        bool FixSneakingPose(const RE::Actor* a_actor, const PoseFlags& a_poseFlags, const bool& a_log = false);
 
         float GetStandingCapsuleHeight(const RE::Actor* a_actor) const;
 
@@ -187,11 +187,6 @@ namespace VCD {
             bool sneakingPoseApplied{ false };
         };
 
-        struct StateScale {
-            static constexpr float sittingScale{ 0.65F };
-            static constexpr float sneakingScale{ 0.7F };
-		};
-
         inline float GetCapsuleHeight(const float& a_point1Z, const float& a_point2Z, const float& a_radius) const
         {
             return std::abs(a_point1Z - a_point2Z) + 2.0F * a_radius;
@@ -211,26 +206,26 @@ namespace VCD {
             a_state.hasStandingCapsule = true;
         }
 
-        inline float ApplySittingCapsule(LastActorState& a_state, float& a_point1Z, float& a_point2Z, const float& a_radius, const SittingFlags& a_sittingFlags)
+        inline float ApplySittingCapsule(LastActorState& a_state, float& a_point1Z, float& a_point2Z, const float& a_radius, const PoseFlags& a_poseFlags, const float& a_scale)
         {
-            const auto sittingHeight = GetCapsuleHeight(a_state.standingPoint1Z, a_state.standingPoint2Z, a_state.standingRadius) * StateScale::sittingScale;
+            const auto sittingHeight = GetCapsuleHeight(a_state.standingPoint1Z, a_state.standingPoint2Z, a_state.standingRadius) * a_scale;
             const auto sittingCenterlineHeight = std::max(0.0F, sittingHeight - 2.0F * a_state.standingRadius);
 
             if (a_state.standingPoint1Z >= a_state.standingPoint2Z) {
-                a_point1Z = a_sittingFlags.isChildSittingOnKnees ? 0.0F : sittingCenterlineHeight;
-                a_point2Z = a_sittingFlags.isChildSittingOnKnees ? a_state.standingPoint2Z : 0.0F;
+                a_point1Z = a_poseFlags.isChildSittingOnKnees ? 0.0F : sittingCenterlineHeight;
+                a_point2Z = a_poseFlags.isChildSittingOnKnees ? a_state.standingPoint2Z : 0.0F;
             }
             else {
-                a_point1Z = a_sittingFlags.isChildSittingOnKnees ? a_state.standingPoint1Z : 0.0F;
-                a_point2Z = a_sittingFlags.isChildSittingOnKnees ? 0.0F : sittingCenterlineHeight;
+                a_point1Z = a_poseFlags.isChildSittingOnKnees ? a_state.standingPoint1Z : 0.0F;
+                a_point2Z = a_poseFlags.isChildSittingOnKnees ? 0.0F : sittingCenterlineHeight;
             }
 
             return GetCapsuleHeight(a_point1Z, a_point2Z, a_radius);
         }
 
-        inline void ApplySneakingCapsule(LastActorState& a_state, float& a_point1Z, float& a_point2Z)
+        inline void ApplySneakingCapsule(LastActorState& a_state, float& a_point1Z, float& a_point2Z, const float& a_scale)
         {
-            const auto sneakingHeight = GetCapsuleHeight(a_state.standingPoint1Z, a_state.standingPoint2Z, a_state.standingRadius) * StateScale::sneakingScale;
+            const auto sneakingHeight = GetCapsuleHeight(a_state.standingPoint1Z, a_state.standingPoint2Z, a_state.standingRadius) * a_scale;
             const auto sneakingCenterlineHeight = std::max(0.0F, sneakingHeight - 2.0F * a_state.standingRadius);
 
             if (a_state.standingPoint1Z >= a_state.standingPoint2Z) {
