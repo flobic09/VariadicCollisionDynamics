@@ -7,36 +7,19 @@
 #include <unordered_map>
 
 #include "logger.hpp"
+#include "helper.hpp"
 
 namespace fs = std::filesystem;
 using json = nlohmann::json;
 
-namespace Utils{
-
 
 // stole from log watcher utiltiy, mabye better to just take the whole header file instead? 
-inline std::string toUTF8(const std::filesystem::path& p) {
-    auto u8 = p.u8string();
-    return std::string(u8.begin(), u8.end());
-}
-
-inline void replaceAll(std::string& s, const std::string& from, const std::string& to) {
-    if (from.empty()) return;
-
-    size_t pos = 0;
-    while ((pos = s.find(from, pos)) != std::string::npos) {
-        s.replace(pos, from.length(), to);
-        pos += to.length();
-    }
-}
-
-}
 
 namespace Trans {
 
-    inline std::string GetTranslationPath() {
-        const auto root = std::filesystem::path(REL::Module::get().filename()).parent_path();
-        return (root / "Data" / "SKSE" / "Plugins" / PRODUCT_NAME / "Translation" / (std::string(PRODUCT_NAME) + "Translation.json")).string();
+    inline fs::path GetTranslationPath() {
+        const auto pluginPath = VCD::GetPluginDataPath();
+        return pluginPath / "Translation" / "Translation.json";
     }
 
     class Translator {
@@ -53,7 +36,7 @@ namespace Trans {
 
             std::ifstream in(path);
             if (!in) {
-                logger::error("Translation: could not open file {}", Utils::toUTF8(path));
+                logger::error("Translation: could not open file {}", VCD::ToUTF8(path));
                 return false;
             }
 
@@ -61,7 +44,7 @@ namespace Trans {
                 json data = json::parse(in, nullptr, true, true);
 
                 if (!data.is_object()) {
-                    logger::error("Translation: JSON root is not an object in file {}", Utils::toUTF8(path));
+                    logger::error("Translation: JSON root is not an object in file {}", VCD::ToUTF8(path));
                     return false;
                 }
 
@@ -72,7 +55,7 @@ namespace Trans {
                 }
             }
             catch (const std::exception& e) {
-                logger::error("Translation: JSON parse error in file {}: {}", Utils::toUTF8(path), e.what());
+                logger::error("Translation: JSON parse error in file {}: {}", VCD::ToUTF8(path), e.what());
                 table.clear();
                 return false;
             }
@@ -101,7 +84,7 @@ namespace Trans {
 
     inline const std::string& Tr(const std::string& key, const int& n) {
 		std::string s = Tr(key);
-		Utils::replaceAll(s, "{n}", std::to_string(n));
+		VCD::ReplaceAll(s, "{n}", std::to_string(n));
 		return s;
     }
 

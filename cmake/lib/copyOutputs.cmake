@@ -11,6 +11,7 @@ function(copyOutputs TARGET_FOLDER)
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${DLL_FOLDER}"
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:${PROJECT_NAME}>" "${DLL_FOLDER}/$<TARGET_FILE_NAME:${PROJECT_NAME}>"
         COMMAND "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_SOURCE_DIR}/presets" "${DLL_FOLDER}/${PROJECT_NAME}/Presets"
+        COMMAND "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_SOURCE_DIR}/translation" "${DLL_FOLDER}/${PROJECT_NAME}/Translation"
         VERBATIM
     )
 

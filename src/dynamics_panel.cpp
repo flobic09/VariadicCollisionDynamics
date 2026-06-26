@@ -618,12 +618,12 @@ namespace UI {
 
         const bool createPreset =
             GUI::Button(
-                (Trans::Tr("Dynamics.Preset.CreateButton") + "##CreateNewPreset").c_str(),
+                ("        " + Trans::Tr("Dynamics.CreatePreset.Button") + "##CreateNewPreset").c_str(),
                 GUI::ImVec2{ buttonWidth, buttonHeight }
             );
 
         WrappedTooltip(
-            Trans::Tr("Dynamics.Preset.CreateTooltip").c_str()
+            Trans::Tr("Dynamics.CreatePreset.Tooltip").c_str()
         );
 
         GUI::ImVec2 buttonMin{};
@@ -659,7 +659,8 @@ namespace UI {
         GUI::PopStyleColor(5);
         GUI::PopStyleVar(2);
 
-        GUI::SameLine();
+        const auto* style = GUI::GetStyle();
+        GUI::SetCursorScreenPos(GUI::ImVec2{ buttonMax.x + (style ? style->ItemSpacing.x : 8.0F), buttonMin.y });
 
         constexpr unsigned kCircleMinusIcon = 0xF056;
         static const auto circleMinusText = FontAwesome::UnicodeToUtf8(kCircleMinusIcon);
@@ -679,8 +680,13 @@ namespace UI {
         GUI::PushStyleColor(GUI::ImGuiCol_Text, UI::Color::kDeletePresetText);
         GUI::PushStyleColor(GUI::ImGuiCol_Border, UI::Color::kDeletePresetBorder);
 
-        const bool deletePreset = GUI::Button("        Delete Preset##DeletePreset", GUI::ImVec2{ buttonWidth, buttonHeight });
-        WrappedTooltip(hasCustomPresets ? "Delete a custom preset." : "There are no custom presets to delete.");
+        const bool deletePreset =
+            GUI::Button(
+                ("        " + Trans::Tr("Dynamics.DeletePreset.Button") + "##DeletePreset").c_str(),
+                GUI::ImVec2{ buttonWidth, buttonHeight }
+            );
+        WrappedTooltip(hasCustomPresets ? Trans::Tr("Dynamics.DeletePreset.Tooltip.Custom").c_str() :
+                                          Trans::Tr("Dynamics.DeletePreset.Tooltip.Default").c_str());
 
         GUI::GetItemRectMin(&buttonMin);
         GUI::GetItemRectMax(&buttonMax);
@@ -939,7 +945,7 @@ namespace UI {
             return;
         }
 
-        constexpr auto windowSize = GUI::ImVec2{ 420.0F, 180.0F };
+        constexpr auto windowSize = GUI::ImVec2{ 440.0F, 220.0F };
         GUI::SetNextWindowSize(windowSize, GUI::ImGuiCond_Appearing);
         if (const auto* io = GUI::GetIO()) {
             GUI::SetNextWindowPos(GUI::ImVec2{ io->DisplaySize.x * 0.5F, io->DisplaySize.y * 0.5F }, GUI::ImGuiCond_Appearing, GUI::ImVec2{ 0.5F, 0.5F });
@@ -947,7 +953,7 @@ namespace UI {
 
         const auto wasOpen = editor.open;
         GUI::PushStyleColor(GUI::ImGuiCol_WindowBg, Color::kEditWindowBg);
-        if (!GUI::Begin("Delete Preset", &editor.open, 0)) {
+        if (!GUI::Begin(Trans::Tr("Dynamics.DeletePreset.WindowTitle").c_str(), &editor.open, 0)) {
             GUI::End();
             if (wasOpen && !editor.open) {
                 CloseDeletePresetEditor();
@@ -958,7 +964,7 @@ namespace UI {
 
         GUI::SetNextItemWidth(260.0F);
         SolidBackground(GUI::ImGuiCol_PopupBg);
-        if (GUI::BeginCombo("Preset", selected->name.c_str())) {
+        if (GUI::BeginCombo(Trans::Tr("Dynamics.DeletePreset.ComboName").c_str(), selected->name.c_str())) {
             for (const auto& config : manager.GetPresetConfigs()) {
                 if (config.builtIn) {
                     continue;
@@ -973,8 +979,12 @@ namespace UI {
         }
         GUI::PopStyleColor();
 
-        GUI::TextWrapped("This permanently deletes the selected preset file.");
-        if (CTAButton("Delete", true)) {
+        GUI::Spacing();
+        GUI::TextWrapped(Trans::Tr("Dynamics.DeletePreset.TextTip").c_str());
+        GUI::Spacing();
+        GUI::Spacing();
+
+        if (CTAButton(Trans::Tr("Dynamics.DeletePreset.DeleteButton").c_str(), true)) {
             const auto deletedPreset = editor.preset;
             std::string key{};
             if (VCD::Manager::GetSingleton().DeletePreset(deletedPreset, key, editor.error)) {
@@ -991,7 +1001,8 @@ namespace UI {
             }
         }
         GUI::SameLine();
-        if (GUI::Button("Cancel")) {
+        GUI::SetCursorPosX(GUI::GetCursorPosX() + 12.0F);
+        if (GUI::Button(Trans::Tr("Dynamics.DeletePreset.CancelButton").c_str())) {
             CloseDeletePresetEditor();
         }
 
@@ -1004,6 +1015,8 @@ namespace UI {
             CloseDeletePresetEditor();
         }
         GUI::PopStyleColor();
+
+        GUI::Spacing();
     }
 
     void RenderCreatePresetEditor()

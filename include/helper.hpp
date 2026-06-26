@@ -27,6 +27,16 @@ namespace VCD {
         return std::string(reinterpret_cast<const char*>(u8.c_str()));
     }
 
+    inline void ReplaceAll(std::string& s, const std::string& from, const std::string& to) {
+        if (from.empty()) return;
+
+        size_t pos = 0;
+        while ((pos = s.find(from, pos)) != std::string::npos) {
+            s.replace(pos, from.length(), to);
+            pos += to.length();
+        }
+    }
+
     template <class Enum>
     constexpr auto ToUnderlying(const Enum& a_value)
     {
