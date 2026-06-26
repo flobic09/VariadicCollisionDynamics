@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <string>
+#include <string_view>
 #include <algorithm>
 
 namespace Settings {
@@ -131,6 +132,8 @@ namespace Settings {
 	void MarkNPCActorPresetEdited(const RE::FormID& a_formID, const std::string& a_name, const VCD::Preset& a_preset, const VCD::CollisionData& a_data);
 
 	void ClearNPCActorPresetEdited(const RE::FormID& a_formID, const VCD::Preset& a_preset);
+
+	void RemapDeletedPreset(const VCD::Preset& a_preset, std::string_view a_key);
 
 	bool IsDirty();
 

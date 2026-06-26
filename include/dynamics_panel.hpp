@@ -39,6 +39,13 @@ namespace UI {
         VCD::CollisionData current{};
     };
 
+    struct DeletePresetEditorState
+    {
+        bool open{ false };
+        VCD::Preset preset{ VCD::Preset::kVanilla };
+        std::string error{};
+    };
+
     struct NPCActorOption
     {
         RE::ActorHandle handle{};
@@ -57,6 +64,18 @@ namespace UI {
     {
         static CreatePresetEditorState state{};
         return state;
+    }
+
+    inline DeletePresetEditorState& GetDeletePresetEditorState()
+    {
+        static DeletePresetEditorState state{};
+        return state;
+    }
+
+    inline VCD::Preset& GetSelectedNPCPreset()
+    {
+        static VCD::Preset preset{ VCD::Preset::kVanilla };
+        return preset;
     }
 
     inline void PreviewPreset(const VCD::Preset& a_preset)
@@ -129,5 +148,9 @@ namespace UI {
     void OpenCreatePresetEditor();
 
     void CloseCreatePresetEditor();
+
+    void OpenDeletePresetEditor();
+
+    void CloseDeletePresetEditor();
 
 }

@@ -413,6 +413,7 @@ namespace UI {
 
     void OpenCreatePresetEditor()
     {
+        CloseDeletePresetEditor();
         auto& presetEditor = GetPresetEditorState();
         if (presetEditor.open) {
             ClosePresetEditor();
@@ -436,6 +437,28 @@ namespace UI {
     {
         RestoreCreatePresetPreview();
         GetCreatePresetEditorState().open = false;
+    }
+
+    void OpenDeletePresetEditor()
+    {
+        if (GetCreatePresetEditorState().open) {
+            CloseCreatePresetEditor();
+        }
+
+        auto& editor = GetDeletePresetEditorState();
+        editor = {};
+        for (const auto& config : VCD::Manager::GetSingleton().GetPresetConfigs()) {
+            if (!config.builtIn) {
+                editor.open = true;
+                editor.preset = config.preset;
+                return;
+            }
+        }
+    }
+
+    void CloseDeletePresetEditor()
+    {
+        GetDeletePresetEditorState() = {};
     }
 
     bool RenderCollisionSliders(VCD::CollisionData& a_current, const VCD::CollisionData& a_defaults)
@@ -568,7 +591,7 @@ namespace UI {
         GUI::PopStyleColor(2);
     }
 
-    void RenderCreatePresetButton()
+    void RenderCreateDeleteButtons()
     {
         constexpr unsigned kCirclePlusIcon = 0xF055;
         constexpr auto buttonWidth = 220.0F;
@@ -607,6 +630,48 @@ namespace UI {
 
         GUI::PopStyleColor(5);
         GUI::PopStyleVar(2);
+
+        GUI::SameLine();
+
+        constexpr unsigned kCircleMinusIcon = 0xF056;
+        static const auto circleMinusText = FontAwesome::UnicodeToUtf8(kCircleMinusIcon);
+        const auto& presetConfigs = VCD::Manager::GetSingleton().GetPresetConfigs();
+        const auto hasCustomPresets = std::any_of(presetConfigs.begin(), presetConfigs.end(),
+            [](const VCD::PresetConfig& a_config) {
+                return !a_config.builtIn;
+            }
+        );
+
+        GUI::BeginDisabled(!hasCustomPresets);
+        GUI::PushStyleVar(GUI::ImGuiStyleVar_FrameRounding, 5.0F);
+        GUI::PushStyleVar(GUI::ImGuiStyleVar_FrameBorderSize, 1.0F);
+        GUI::PushStyleColor(GUI::ImGuiCol_Button, UI::Color::kDeletePresetBG);
+        GUI::PushStyleColor(GUI::ImGuiCol_ButtonHovered, UI::Color::kDeletePresetHover);
+        GUI::PushStyleColor(GUI::ImGuiCol_ButtonActive, UI::Color::kDeletePresetActive);
+        GUI::PushStyleColor(GUI::ImGuiCol_Text, UI::Color::kDeletePresetText);
+        GUI::PushStyleColor(GUI::ImGuiCol_Border, UI::Color::kDeletePresetBorder);
+
+        const bool deletePreset = GUI::Button("        Delete Preset##DeletePreset", GUI::ImVec2{ buttonWidth, buttonHeight });
+        WrappedTooltip(hasCustomPresets ? "Delete a custom preset." : "There are no custom presets to delete.");
+
+        GUI::GetItemRectMin(&buttonMin);
+        GUI::GetItemRectMax(&buttonMax);
+        GUI::GetCursorScreenPos(&nextItemPosition);
+
+        FontAwesome::PushSolid();
+        GUI::CalcTextSize(&iconSize, circleMinusText.c_str(), nullptr, false, -1.0F);
+        GUI::SetCursorScreenPos(GUI::ImVec2{ buttonMin.x + 13.0F, buttonMin.y + ((buttonMax.y - buttonMin.y - iconSize.y) * 0.5F) });
+        GUI::TextUnformatted(circleMinusText.c_str());
+        FontAwesome::Pop();
+        GUI::SetCursorScreenPos(nextItemPosition);
+
+        if (deletePreset) {
+            OpenDeletePresetEditor();
+        }
+
+        GUI::PopStyleColor(5);
+        GUI::PopStyleVar(2);
+        GUI::EndDisabled();
 
         GUI::Spacing();
         GUI::Spacing();
@@ -661,8 +726,7 @@ namespace UI {
         }
 
         GUI::Spacing();
-        static auto selectedPreset = VCD::Preset::kVanilla;
-        RenderNPCActorSelector(selectedPreset);
+        RenderNPCActorSelector(GetSelectedNPCPreset());
 
         GUI::EndDisabled();
     }
@@ -776,6 +840,87 @@ namespace UI {
         GUI::PopStyleColor();
     }
 
+    void RenderDeletePresetEditor()
+    {
+        auto& editor = GetDeletePresetEditorState();
+        if (!editor.open) {
+            return;
+        }
+
+        const auto& manager = VCD::Manager::GetSingleton();
+        const auto* selected = manager.GetPresetConfig(editor.preset);
+        if (!selected || selected->builtIn) {
+            CloseDeletePresetEditor();
+            return;
+        }
+
+        constexpr auto windowSize = GUI::ImVec2{ 420.0F, 180.0F };
+        GUI::SetNextWindowSize(windowSize, GUI::ImGuiCond_Appearing);
+        if (const auto* io = GUI::GetIO()) {
+            GUI::SetNextWindowPos(GUI::ImVec2{ io->DisplaySize.x * 0.5F, io->DisplaySize.y * 0.5F }, GUI::ImGuiCond_Appearing, GUI::ImVec2{ 0.5F, 0.5F });
+        }
+
+        const auto wasOpen = editor.open;
+        GUI::PushStyleColor(GUI::ImGuiCol_WindowBg, Color::kEditWindowBg);
+        if (!GUI::Begin("Delete Preset", &editor.open, 0)) {
+            GUI::End();
+            if (wasOpen && !editor.open) {
+                CloseDeletePresetEditor();
+            }
+            GUI::PopStyleColor();
+            return;
+        }
+
+        GUI::SetNextItemWidth(260.0F);
+        SolidBackground(GUI::ImGuiCol_PopupBg);
+        if (GUI::BeginCombo("Preset", selected->name.c_str())) {
+            for (const auto& config : manager.GetPresetConfigs()) {
+                if (config.builtIn) {
+                    continue;
+                }
+                const auto isSelected = config.preset == editor.preset;
+                if (GUI::Selectable(config.name.c_str(), isSelected)) {
+                    editor.preset = config.preset;
+                    editor.error.clear();
+                }
+            }
+            GUI::EndCombo();
+        }
+        GUI::PopStyleColor();
+
+        GUI::TextWrapped("This permanently deletes the selected preset file.");
+        if (CTAButton("Delete", true)) {
+            const auto deletedPreset = editor.preset;
+            std::string key{};
+            if (VCD::Manager::GetSingleton().DeletePreset(deletedPreset, key, editor.error)) {
+                auto& presetEditor = GetPresetEditorState();
+                if (presetEditor.open) {
+                    EndAutoDraw();
+                    presetEditor = {};
+                }
+                Settings::RemapDeletedPreset(deletedPreset, key);
+                Dynamics::RemapDeletedPreset(deletedPreset);
+                auto& selectedNPCPreset = GetSelectedNPCPreset();
+                VCD::RemapPresetAfterDeletion(selectedNPCPreset, deletedPreset);
+                CloseDeletePresetEditor();
+            }
+        }
+        GUI::SameLine();
+        if (GUI::Button("Cancel")) {
+            CloseDeletePresetEditor();
+        }
+
+        if (!editor.error.empty()) {
+            GUI::TextWrapped("%s", editor.error.c_str());
+        }
+
+        GUI::End();
+        if (wasOpen && !editor.open) {
+            CloseDeletePresetEditor();
+        }
+        GUI::PopStyleColor();
+    }
+
     void RenderCreatePresetEditor()
     {
         auto& editor = GetCreatePresetEditorState();
@@ -863,7 +1008,7 @@ namespace UI {
 
     void __stdcall RenderDynamicsMenu()
     {
-        RenderCreatePresetButton();
+        RenderCreateDeleteButtons();
 
         constexpr auto defaultOpen = GUI::ImGuiTreeNodeFlags_DefaultOpen;
         if (GUI::CollapsingHeader("Player Dynamics", defaultOpen)) {
@@ -918,6 +1063,7 @@ namespace UI {
 
         RenderPresetEditor();
         RenderCreatePresetEditor();
+        RenderDeletePresetEditor();
     }
 
 }

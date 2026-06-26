@@ -499,6 +499,14 @@ namespace Dynamics {
 		VCD::Manager::GetSingleton().ClearRuntimeState();
 	}
 
+	void RemapDeletedPreset(const VCD::Preset& a_preset)
+	{
+		auto& config = GetConfig();
+#define PRESET_STATE2REMAP(S, D) VCD::RemapPresetAfterDeletion(config.S, a_preset);
+		FOREACH_PRESET_STATE(PRESET_STATE2REMAP)
+		ClearRuntimeState();
+	}
+
 	void Update(const RE::PlayerCharacter* a_player)
 	{
 		if (!a_player) {
@@ -643,3 +651,5 @@ namespace Dynamics {
 	}
 
 }
+
+#undef PRESET_STATE2REMAP

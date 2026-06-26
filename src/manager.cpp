@@ -641,6 +641,41 @@ bool Manager::CreatePreset(const std::string& a_name, const CollisionData& a_dat
     return true;
 }
 
+bool Manager::DeletePreset(const Preset& a_preset, std::string& a_key, std::string& a_error)
+{
+    const auto index = static_cast<size_t>(ToUnderlying(a_preset));
+    if (index >= presetConfigs.size() || index >= defaultPresetConfigs.size()) {
+        a_error = "The selected preset is unavailable.";
+        return false;
+    }
+
+    const auto& config = presetConfigs[index];
+    if (config.builtIn) {
+        a_error = "Built-in presets cannot be deleted.";
+        return false;
+    }
+
+    const auto path = GetPresetDir() / (config.key + ".json");
+    std::error_code ec;
+    fs::remove(path, ec);
+    if (ec) {
+        a_error = "Could not delete the preset file.";
+        logger::error("Failed to delete preset {}: {}", ToUTF8(path), ec.message());
+        return false;
+    }
+
+    a_key = config.key;
+    presetConfigs.erase(presetConfigs.begin() + index);
+    defaultPresetConfigs.erase(defaultPresetConfigs.begin() + index);
+    for (size_t i = index; i < presetConfigs.size(); ++i) {
+        presetConfigs[i].preset = static_cast<Preset>(i);
+        defaultPresetConfigs[i].preset = static_cast<Preset>(i);
+    }
+    RebuildPresetIndex();
+    logger::info("Preset deleted: {}", ToUTF8(path));
+    return true;
+}
+
 void Manager::RebuildPresetIndex()
 {
     presetIndices.clear();

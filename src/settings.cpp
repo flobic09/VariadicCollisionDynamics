@@ -58,7 +58,7 @@ namespace Settings {
 
 	bool DynamicsSettingsEqual(const VCDSettings& a_left, const VCDSettings& a_right)
 	{
-		if (!(FOREACH_DYNAMICS_BOOL_SETTING(SETTING2EQ) FOREACH_PRESET_SETTING(SETTING2EQ) true)) {
+		if (!(FOREACH_DYNAMICS_BOOL_SETTING(SETTING2EQ) FOREACH_PRESET_STATE(SETTING2EQ) true)) {
 			return false;
 		}
 
@@ -85,7 +85,7 @@ namespace Settings {
 	void CopyDynamicsSettings(VCDSettings& a_target, const VCDSettings& a_source)
 	{
 		FOREACH_DYNAMICS_BOOL_SETTING(SETTING2COPY)
-		FOREACH_PRESET_SETTING(SETTING2COPY)
+		FOREACH_PRESET_STATE(SETTING2COPY)
 		a_target.presets = a_source.presets;
 		a_target.npcPresets = a_source.npcPresets;
 		a_target.npcActorPresets = a_source.npcActorPresets;
@@ -160,7 +160,7 @@ namespace Settings {
 
 	bool SettingsEqual(const VCDSettings& a_left, const VCDSettings& a_right)
 	{
-		if (!(FOREACH_BOOL_SETTING(SETTING2EQ) FOREACH_FLOAT_SETTING(SETTING2EQ) FOREACH_INT_SETTING(SETTING2EQ) FOREACH_PRESET_SETTING(SETTING2EQ) true)) {
+		if (!(FOREACH_BOOL_SETTING(SETTING2EQ) FOREACH_FLOAT_SETTING(SETTING2EQ) FOREACH_INT_SETTING(SETTING2EQ) FOREACH_PRESET_STATE(SETTING2EQ) true)) {
 			return false;
 		}
 
@@ -188,31 +188,20 @@ namespace Settings {
 		return true;
 	}
 
-#undef PRESET2COPY
-#define PRESET2COPY(S, D, C) S.C = D.C
-#define FOREACH_SETTING(S, D, COPY) \
-	COPY(S, D, outdoor); \
-	COPY(S, D, indoor); \
-	COPY(S, D, combat); \
-	COPY(S, D, werewolf); \
-	COPY(S, D, vampireLord); \
-	COPY(S, D, neutral); \
-	COPY(S, D, npcNeutral); \
-	COPY(S, D, npcCombat); \
-	COPY(S, D, guardNeutral); \
-	COPY(S, D, guardCombat);
+#define PRESET_STATE2CAPTURE(S, D) a_settings.S = config.S;
+#define PRESET_STATE2APPLY(S, D) config.S = a_settings.S;
 
 	void CaptureCurrent(VCDSettings& a_settings)
 	{
 		const auto& config = Dynamics::GetConfig();
-		FOREACH_SETTING(a_settings, config, PRESET2COPY)
+		FOREACH_PRESET_STATE(PRESET_STATE2CAPTURE)
 	}
 
 	void ApplySettings(const VCDSettings& a_settings)
 	{
 		auto& config = Dynamics::GetConfig();
 		auto& manager = VCD::Manager::GetSingleton();
-		FOREACH_SETTING(config, a_settings, PRESET2COPY)
+		FOREACH_PRESET_STATE(PRESET_STATE2APPLY)
 		const auto logLevel = static_cast<spdlog::level::level_enum>(NormalizeLogLevel(a_settings.logLevel));
 		spdlog::set_level(logLevel);
 		spdlog::flush_on(logLevel);
@@ -338,6 +327,36 @@ namespace Settings {
 				return a_actorPreset.formID == a_formID && a_actorPreset.preset == a_preset;
 			}
 		);
+	}
+
+	void RemapPresetSettings(VCDSettings& a_settings, const VCD::Preset& a_preset, const VCD::Preset& a_replacement, const bool& a_removeDeleted, std::string_view a_key)
+	{
+#define PRESET_STATE2REMAP(S, D) VCD::RemapPresetAfterDeletion(a_settings.S, a_preset, a_replacement);
+		FOREACH_PRESET_STATE(PRESET_STATE2REMAP)
+		if (a_removeDeleted) {
+			auto actorPreset = a_settings.npcActorPresets.begin();
+			while (actorPreset != a_settings.npcActorPresets.end()) {
+				if (actorPreset->preset == a_preset) {
+					actorPreset = a_settings.npcActorPresets.erase(actorPreset);
+					continue;
+				}
+				VCD::RemapPresetAfterDeletion(actorPreset->preset, a_preset);
+				++actorPreset;
+			}
+			a_settings.presets.erase(std::string(a_key));
+			a_settings.npcPresets.erase(std::string(a_key));
+			return;
+		}
+
+		for (auto& actorPreset : a_settings.npcActorPresets) {
+			VCD::RemapPresetAfterDeletion(actorPreset.preset, a_preset, a_replacement);
+		}
+	}
+
+	void RemapDeletedPreset(const VCD::Preset& a_preset, std::string_view a_key)
+	{
+		RemapPresetSettings(GetSettings(), a_preset, VCD::Preset::kVanilla, true, a_key);
+		RemapPresetSettings(GetSavedSettings(), a_preset, VCD::kInvalidPreset, false, a_key);
 	}
 
 	bool IsDirty()
@@ -485,6 +504,8 @@ namespace Settings {
 #undef SETTING2EQ_COLOR
 #undef SETTING2COPY
 #undef SETTING2COPY_COLOR
-#undef PRESET2COPY
+#undef PRESET_STATE2CAPTURE
+#undef PRESET_STATE2APPLY
+#undef PRESET_STATE2REMAP
 
 }

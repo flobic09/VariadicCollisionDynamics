@@ -23,5 +23,10 @@ namespace UI::Color {
     inline constexpr GUI::ImVec4 kCreatePresetActive{ 0.28F, 0.21F, 0.11F, 1.00F };
     inline constexpr GUI::ImVec4 kCreatePresetText{ 1.00F, 0.94F, 0.78F, 1.00F };
     inline constexpr GUI::ImVec4 kCreatePresetBorder{ 0.68F, 0.53F, 0.29F, 0.90F };
+    inline constexpr GUI::ImVec4 kDeletePresetBG{ 0.28F, 0.12F, 0.12F, 0.96F };
+    inline constexpr GUI::ImVec4 kDeletePresetHover{ 0.48F, 0.20F, 0.20F, 1.00F };
+    inline constexpr GUI::ImVec4 kDeletePresetActive{ 0.36F, 0.14F, 0.14F, 1.00F };
+    inline constexpr GUI::ImVec4 kDeletePresetText{ 1.00F, 0.84F, 0.84F, 1.00F };
+    inline constexpr GUI::ImVec4 kDeletePresetBorder{ 0.78F, 0.35F, 0.35F, 0.90F };
 
 }

@@ -10,6 +10,8 @@
 #include <vector>
 #include <cmath>
 #include <cstddef>
+#include <limits>
+#include <type_traits>
 
 #define FOREACH_COLLISION_DATA_FIELD(S) \
     S(bump.translation.x) \
@@ -38,8 +40,6 @@
 
 namespace VCD {
 
-    inline constexpr std::string_view kPresetDir = "presets";
-
     enum class Preset
     {
 #define PRESET_ENUM(Name, DisplayName) k##Name,
@@ -47,7 +47,9 @@ namespace VCD {
         kTotal
     };
 
+    inline constexpr std::string_view kPresetDir = "presets";
     inline constexpr size_t kBuiltInPresetCount = static_cast<size_t>(Preset::kTotal);
+    inline constexpr Preset kInvalidPreset = static_cast<Preset>(std::numeric_limits<std::underlying_type_t<Preset>>::max());
 
 #define PRESET_KEY_ENTRY(Name, DisplayName) #Name,
     inline constexpr std::array<const char*, kBuiltInPresetCount> kPresetKeys = {
@@ -146,6 +148,18 @@ namespace VCD {
                 false,
                 true
             });
+        }
+    }
+
+    inline void RemapPresetAfterDeletion(Preset& a_value, const Preset& a_deleted, const Preset& a_replacement = Preset::kVanilla)
+    {
+        const auto value = ToUnderlying(a_value);
+        const auto deleted = ToUnderlying(a_deleted);
+        if (value == deleted) {
+            a_value = a_replacement;
+        }
+        else if (value > deleted) {
+            a_value = static_cast<Preset>(value - 1);
         }
     }
 

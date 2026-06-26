@@ -1,6 +1,6 @@
 #pragma once
 
-#include "preset.hpp"
+#include "preset_states.hpp"
 
 #include <array>
 #include <string>
@@ -51,24 +51,6 @@
 	S(drawColor, 1.0F, 1.0F, 0.0F, 1.0F) \
 	S(drawNPCColor, 1.0F, 0.0F, 1.0F, 1.0F)
 
-#define FOREACH_PLAYER_PRESET_SETTING(S) \
-	S(outdoor, VCD::Preset::kPersonalSpace) \
-	S(indoor, VCD::Preset::kCompact) \
-	S(combat, VCD::Preset::kBulky) \
-	S(werewolf, VCD::Preset::kWerewolf) \
-	S(vampireLord, VCD::Preset::kVampireLord) \
-	S(neutral, VCD::Preset::kVanilla)
-
-#define FOREACH_NPC_PRESET_SETTING(S) \
-	S(npcNeutral, VCD::Preset::kNPCNeutral) \
-	S(npcCombat, VCD::Preset::kNPCCombat) \
-	S(guardNeutral, VCD::Preset::kGuardNeutral) \
-	S(guardCombat, VCD::Preset::kGuardCombat)
-
-#define FOREACH_PRESET_SETTING(S) \
-	FOREACH_PLAYER_PRESET_SETTING(S) \
-	FOREACH_NPC_PRESET_SETTING(S)
-
 #define BOOL2DEF(S, D) bool S = D;
 #define FLOAT2DEF(S, D) float S = D;
 #define INT2DEF(S, D) int S = D;
@@ -96,7 +78,7 @@ namespace Settings {
 		FOREACH_BOOL_SETTING(BOOL2DEF);
 		FOREACH_FLOAT_SETTING(FLOAT2DEF);
 		FOREACH_INT_SETTING(INT2DEF);
-		FOREACH_PRESET_SETTING(PRESET2DEF);
+		FOREACH_PRESET_STATE(PRESET2DEF);
 		FOREACH_COLOR_SETTING(COLOR2DEF);
 
 		std::unordered_map<std::string, PresetOverride> presets{};

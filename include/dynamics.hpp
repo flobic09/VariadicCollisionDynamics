@@ -1,6 +1,7 @@
 #pragma once
 
 #include "manager.hpp"
+#include "preset_states.hpp"
 
 #include <chrono>
 #include <cstring>
@@ -79,16 +80,8 @@ namespace Dynamics {
 
 	struct DynamicsConfig
 	{
-		VCD::Preset outdoor{ VCD::Preset::kPersonalSpace };
-		VCD::Preset indoor{ VCD::Preset::kCompact };
-		VCD::Preset combat{ VCD::Preset::kBulky };
-		VCD::Preset werewolf{ VCD::Preset::kWerewolf };
-		VCD::Preset vampireLord{ VCD::Preset::kVampireLord };
-		VCD::Preset neutral{ VCD::Preset::kVanilla };
-		VCD::Preset npcNeutral{ VCD::Preset::kVanilla };
-		VCD::Preset npcCombat{ VCD::Preset::kPersonalSpace };
-		VCD::Preset guardNeutral{ VCD::Preset::kCompact };
-		VCD::Preset guardCombat{ VCD::Preset::kBulky };
+#define PRESET_STATE2DEF(S, D) VCD::Preset S{ D };
+		FOREACH_PRESET_STATE(PRESET_STATE2DEF)
 	};
 
 	inline PresetState& GetPresetState()
@@ -207,8 +200,12 @@ namespace Dynamics {
 
 	void ClearRuntimeState();
 
+	void RemapDeletedPreset(const VCD::Preset& a_preset);
+
 	void Update(const RE::PlayerCharacter* a_player);
 
 	void UpdateNPCs(const RE::PlayerCharacter* a_player);
 
 }
+
+#undef PRESET_STATE2DEF

@@ -106,6 +106,8 @@ namespace VCD {
 
         bool CreatePreset(const std::string& a_name, const CollisionData& a_data, Preset& a_preset, std::string& a_error);
 
+        bool DeletePreset(const Preset& a_preset, std::string& a_key, std::string& a_error);
+
         bool SetPreset(const RE::Actor* a_actor, const Preset& a_preset, const PoseFlags& a_poseFlags, const bool& a_log);
 
         bool SetCollisionData(const RE::Actor* a_actor, const CollisionData& a_data, const Preset& a_anchorPreset, const char* a_name, const PoseFlags& a_poseFlags, const bool& a_log);

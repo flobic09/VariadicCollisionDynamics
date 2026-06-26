@@ -167,7 +167,7 @@ namespace JSON {
 	json PlayerStateToJson(const Settings::VCDSettings& a_settings)
 	{
 		auto data = json{
-			FOREACH_PLAYER_PRESET_SETTING(PRESET2JSON)
+			FOREACH_PLAYER_PRESET_STATE(PRESET2JSON)
 		};
 
 		data["presets"] = PresetOverridesToJson(a_settings.presets);
@@ -176,14 +176,14 @@ namespace JSON {
 
 	void PlayerStateFromJson(const json& a_json, Settings::VCDSettings& a_settings)
 	{
-		FOREACH_PLAYER_PRESET_SETTING(PRESET2GETTER)
+		FOREACH_PLAYER_PRESET_STATE(PRESET2GETTER)
 		PresetOverridesFromJson(a_json, "presets", a_settings.presets);
 	}
 
 	json NPCStateToJson(const Settings::VCDSettings& a_settings)
 	{
 		auto data = json{
-			FOREACH_NPC_PRESET_SETTING(PRESET2JSON)
+			FOREACH_NPC_PRESET_STATE(PRESET2JSON)
 		};
 
 		data["presets"] = PresetOverridesToJson(a_settings.npcPresets);
@@ -193,7 +193,7 @@ namespace JSON {
 
 	void NPCStateFromJson(const json& a_json, Settings::VCDSettings& a_settings)
 	{
-		FOREACH_NPC_PRESET_SETTING(PRESET2GETTER)
+		FOREACH_NPC_PRESET_STATE(PRESET2GETTER)
 		PresetOverridesFromJson(a_json, "presets", a_settings.npcPresets);
 		NPCActorPresetsFromJson(a_json, a_settings);
 	}
@@ -205,7 +205,7 @@ namespace JSON {
 			FOREACH_FLOAT_SETTING(FLOAT2JSON)
 			FOREACH_INT_SETTING(INT2JSON)
 			FOREACH_COLOR_SETTING(COLOR2JSON)
-			FOREACH_PRESET_SETTING(PRESET2JSON)
+			FOREACH_PRESET_STATE(PRESET2JSON)
 		};
 
 		data["presets"] = PresetOverridesToJson(a_settings.presets);
@@ -219,7 +219,7 @@ namespace JSON {
 		FOREACH_BOOL_SETTING(BOOL2GETTER)
 		FOREACH_FLOAT_SETTING(FLOAT2GETTER)
 		FOREACH_INT_SETTING(INT2GETTER)
-		FOREACH_PRESET_SETTING(PRESET2GETTER)
+		FOREACH_PRESET_STATE(PRESET2GETTER)
 		FOREACH_COLOR_SETTING(COLOR2GETTER)
 		PresetOverridesFromJson(a_json, "presets", a_settings.presets);
 		PresetOverridesFromJson(a_json, "npcPresets", a_settings.npcPresets);
