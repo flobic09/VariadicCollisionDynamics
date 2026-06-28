@@ -39,7 +39,11 @@
     S(GuardCombat, "Guard Combat") \
     S(Giant, "Giant") \
     S(Troll, "Troll") \
-    S(Draugr, "Draugr")
+    S(Draugr, "Draugr") \
+    S(CameraVanilla, "Camera Vanilla") \
+    S(CameraDialogue, "Camera Dialogue") \
+    S(CameraIndoor, "Camera Indoor") \
+    S(CameraOutdoor, "Camera Outdoor")
 
 namespace VCD {
 

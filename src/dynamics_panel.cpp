@@ -78,11 +78,44 @@ namespace UI {
                 if (i == VCD::kBuiltInPresetCount) {
                     GUI::Separator();
                 }
-
+                
                 const auto& presetConfig = presetConfigs[i];
+
+                if (manager.IsCameraPreset(presetConfig.preset)) {
+                    continue; 
+                }
+
                 const bool selected = presetConfig.preset == a_preset;
                 if (GUI::Selectable(presetConfig.name.c_str(), selected)) {
                     a_preset = presetConfig.preset;
+                    changed = true;
+                }
+            }
+            GUI::EndCombo();
+        }
+        GUI::PopStyleColor();
+        return changed;
+    }
+
+    bool CameraPresetCombo(const char* a_label, VCD::Preset& a_preset)
+    {
+        static constexpr std::array cameraPresets = {
+    #define CAMERA_PRESET_COLLECT(S, D) D,
+            FOREACH_CAMERA_PRESET_STATE(CAMERA_PRESET_COLLECT)
+        };
+#undef CAMERA_PRESET_COLLECT
+        const auto& manager = VCD::Manager::GetSingleton();
+        const auto* current = manager.GetPresetConfig(a_preset);
+        bool changed = false;
+
+        SolidBackground(GUI::ImGuiCol_PopupBg);
+        if (GUI::BeginCombo(a_label, current ? current->name.c_str() : Trans::Tr("Dynamics.Label.Vanilla").c_str())) {
+            for (const auto& preset : cameraPresets) {
+                const auto* config = manager.GetPresetConfig(preset);
+                if (!config) continue;
+                const bool selected = preset == a_preset;
+                if (GUI::Selectable(config->name.c_str(), selected)) {
+                    a_preset = preset;
                     changed = true;
                 }
             }
@@ -541,6 +574,23 @@ namespace UI {
         }
     }
 
+    void RenderCameraStateRow(const char* a_label, VCD::Preset& a_preset)
+    {
+        GUI::TableNextRow();
+        GUI::TableNextColumn();
+        GUI::Text("%s", a_label);
+        GUI::TableNextColumn();
+        GUI::SetNextItemWidth(180.0F);
+        CameraPresetCombo((std::string("##") + a_label).c_str(), a_preset);
+        GUI::SameLine();
+        GUI::PushStyleColor(GUI::ImGuiCol_ButtonHovered, Color::kEditHover);
+        GUI::PushStyleColor(GUI::ImGuiCol_ButtonActive, Color::kEditActive);
+        if (GUI::Button((Trans::Tr("Dynamics.Editor.Button.Edit") + "##" + a_label).c_str())) {
+            OpenPresetEditor(a_preset);
+        }
+        GUI::PopStyleColor(2);
+    }
+
     void RenderNPCActorSelector(VCD::Preset& a_selectedPreset)
     {
         auto options = GetNearbyNPCActorOptions();
@@ -762,6 +812,32 @@ namespace UI {
 
         GUI::EndDisabled();
     }
+    void RenderCameraDynamics()
+    {
+        auto& config = Dynamics::GetConfig();
+        auto& settings = Settings::GetSettings();
+
+        if (GUI::Checkbox(Trans::Tr("Dynamics.Camera.EnableCheckbox").c_str(), &settings.enableCameraDynamics)
+            && !settings.enableCameraDynamics)
+        {
+            Dynamics::RestoreCameraToVanilla();
+        }
+
+        GUI::BeginDisabled(!settings.enableCameraDynamics);
+
+        if (GUI::BeginTable("CameraDynamicsTable", 2)) {
+            GUI::TableSetupColumn(Trans::Tr("Dynamics.Camera.Column.State").c_str(), GUI::ImGuiTableColumnFlags_WidthFixed, 120.0F);
+            GUI::TableSetupColumn(Trans::Tr("Dynamics.Camera.Column.Preset").c_str(), GUI::ImGuiTableColumnFlags_WidthStretch);
+            RenderCameraStateRow(Trans::Tr("Dynamics.Camera.State.Indoor").c_str(), config.cameraIndoor);
+            RenderCameraStateRow(Trans::Tr("Dynamics.Camera.State.Outdoor").c_str(), config.cameraOutdoor);
+            RenderCameraStateRow(Trans::Tr("Dynamics.Camera.State.Dialogue").c_str(), config.cameraDialogue);
+
+            GUI::EndTable();
+        }
+
+        GUI::EndDisabled();
+    }
+
     void RenderPresetEditor()
     {
         auto& editor = GetPresetEditorState();
@@ -850,8 +926,27 @@ namespace UI {
             );
         }
 
-        if (RenderCollisionSliders(editor.current, editor.defaults)) {
-            UpdateEditedPreset();
+        //Cameras Only (I dont love this solution)
+        if (manager.IsCameraPreset(editor.preset)) {
+            GUI::PushStyleColor(GUI::ImGuiCol_FrameBg, Color::kEditFrameBg);
+            GUI::PushStyleColor(GUI::ImGuiCol_FrameBgHovered, Color::kEditFrameHover);
+            GUI::PushStyleColor(GUI::ImGuiCol_FrameBgActive, Color::kEditFrameActive);
+            GUI::PushItemWidth(260.0F);
+            auto radius = editor.current.capsule.radius;
+            if (GUI::SliderFloat(Trans::Tr("Dynamics.Editor.Radius").c_str(), &radius, 0.05F, 30.0F)) {
+                editor.current.capsule.radius = radius;
+                Dynamics::ApplyCameraCollisionRadius(radius);
+                UpdateEditedPreset();
+            }
+            GUI::PopItemWidth();
+            GUI::PopStyleColor(3);
+
+        }
+        //every preset except cameras
+        else {
+            if (RenderCollisionSliders(editor.current, editor.defaults)) {
+                UpdateEditedPreset();
+            }
         }
 
         GUI::Spacing();
@@ -1014,6 +1109,8 @@ namespace UI {
 
     void RenderCreatePresetEditor()
     {
+        const auto& manager = VCD::Manager::GetSingleton();
+
         auto& editor = GetCreatePresetEditorState();
         if (!editor.open) {
             return;
@@ -1057,15 +1154,19 @@ namespace UI {
             editor.error.clear();
         }
 
-        if (GUI::Checkbox(Trans::Tr("Dynamics.CreatePreset.PreviewCheckbox").c_str(), &editor.preview)) {
-            if (editor.preview) {
-                ApplyCreatePresetPreview();
+        //LEGENDMAN TODO:: Block this button if its a camera preset i couldent figure it out
+       // if (!manager.IsCameraPreset())
+        //
+            if (GUI::Checkbox(
+                Trans::Tr("Dynamics.CreatePreset.PreviewCheckbox").c_str(),
+                &editor.preview))
+            {
+                if (editor.preview)
+                    ApplyCreatePresetPreview();
+                else
+                    RestoreCreatePresetPreview();
             }
-            else {
-                editor.preview = true;
-                RestoreCreatePresetPreview();
-            }
-        }
+      //  }
 
         if (RenderCollisionSliders(editor.current, editor.defaults)) {
             ApplyCreatePresetPreview();
@@ -1141,10 +1242,16 @@ namespace UI {
 
         GUI::Separator();
 
+        if (GUI::CollapsingHeader(Trans::Tr("Dynamics.Menu.CameraDynamicsHeader").c_str(), defaultOpen)) {
+            RenderCameraDynamics();
+        }
+
+        GUI::Separator();
+
         if (IconCTAButton(Trans::Tr("Dynamics.Menu.SaveSettingsButton").c_str(), Settings::IsDirty(), Icons::kSave)) {
             Settings::Save();
         }
-
+ 
         WrappedTooltip(
             Trans::Tr("Dynamics.Menu.SaveSettingsTooltip").c_str()
         );

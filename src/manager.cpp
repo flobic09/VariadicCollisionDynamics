@@ -243,6 +243,20 @@ RE::hkpShape* Manager::GetControllerRootShape(RE::bhkCharacterController* a_cont
     return shape;
 }
 
+RE::hkpSphereShape* Manager::GetCameraPhantomShape(RE::bhkSimpleShapePhantom* bhkPhantom)
+{
+    if (!bhkPhantom) return nullptr;
+    auto* asRefObject = reinterpret_cast<RE::bhkRefObject*>(bhkPhantom);
+    if (!asRefObject) return nullptr;
+    auto* hkpPhantom = static_cast<RE::hkpSimpleShapePhantom*>(
+        asRefObject->referencedObject.get()
+        );
+    if (!hkpPhantom) return nullptr;
+    auto* shape = const_cast<RE::hkpShape*>(hkpPhantom->collidable.shape);
+    if (!shape || shape->type != RE::hkpShapeType::kSphere) return nullptr;
+    return static_cast<RE::hkpSphereShape*>(shape);
+}
+
 bool Manager::FindWorldCharacterBumperShapeData(RE::bhkCharacterController* a_controller, CharacterBumperShape& a_bumper) const
 {
     auto* shape = GetControllerRootShape(a_controller);
@@ -683,5 +697,18 @@ void Manager::RebuildPresetIndex()
     for (size_t i = 0; i < presetConfigs.size(); ++i) {
         presetIndices[presetConfigs[i].key] = i;
     }
+}
+
+bool Manager::IsCameraPreset(VCD::Preset a_preset) const
+{
+    static constexpr std::array cameraPresets = {
+#define CAMERA_PRESET_COLLECT(S, D) D,
+        FOREACH_CAMERA_PRESET_STATE(CAMERA_PRESET_COLLECT)
+#undef CAMERA_PRESET_COLLECT
+    };
+    for (const auto& p : cameraPresets) {
+        if (p == a_preset) return true;
+    }
+    return false;
 }
 

@@ -10,10 +10,12 @@
 #define FOREACH_TOOL_BOOL_SETTING(S) \
 	S(drawCollision, false) \
 	S(drawNearbyActors, false) \
+	S(drawCameraCollision, false) \
 	S(autoDrawPreview, true)
 
 #define FOREACH_DYNAMICS_BOOL_SETTING(S) \
-	S(enableNPCDynamics, false)
+	S(enableNPCDynamics, false) \
+	S(enableCameraDynamics, false)
 
 #define FOREACH_POSE_FIX_BOOL_SETTING(S) \
 	S(fixPlayerSitting, true) \
@@ -83,6 +85,7 @@ namespace Settings {
 
 		std::unordered_map<std::string, PresetOverride> presets{};
 		std::unordered_map<std::string, PresetOverride> npcPresets{};
+		std::unordered_map<std::string, PresetOverride> cameraPresets{};
 
 		std::vector<NPCActorPresetOverride> npcActorPresets{};
 	};

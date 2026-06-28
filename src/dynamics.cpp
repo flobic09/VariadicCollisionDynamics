@@ -337,6 +337,31 @@ namespace Dynamics {
 		return true;
 	}
 
+	void ApplyCameraPreset(const VCD::Preset& a_preset)
+	{
+		auto& state = GetPresetState();
+
+		const auto* presetConfig = VCD::Manager::GetSingleton().GetPresetConfig(a_preset);
+		if (!presetConfig) return;
+		ApplyCameraCollisionRadius(presetConfig->data.capsule.radius);
+
+		// update current camera preset state
+		state.currentCamera = a_preset;  
+		logger::info("set camera state to {}", VCD::PresetName(a_preset));
+	}
+
+	void ApplyCameraCollisionRadius(float a_radius)
+	{
+
+		auto* setting = RE::INISettingCollection::GetSingleton()->GetSetting("fCameraCasterSize:Camera");
+		if (setting) {
+			logger::info("fCameraCasterSize current = {}", setting->data.f);
+
+			// no need to convert to hkp scale for some reason
+			setting->data.f = a_radius; 
+		}
+	}
+
 	bool ApplyEnvironmentPreset(const RE::PlayerCharacter* a_player, const bool& a_force)
 	{
 		if (!a_player) {
@@ -440,6 +465,11 @@ namespace Dynamics {
 
 		state.actors.clear();
 		state.nearbyActors.clear();
+	}
+
+	void RestoreCameraToVanilla() {
+
+		ApplyCameraCollisionRadius(15.0f);
 	}
 
 	void SchedulePostLoadApply()
@@ -553,6 +583,7 @@ namespace Dynamics {
 		const auto poseFlags = PoseFixes::PlayerPose(a_player);
 		const auto* stateName = GetCellStateName(cell);
 		auto preset = GetCellPreset(cell);
+		auto cameraPreset = GetCellCameraPreset(cell);
 
 		if (IsWerewolf(a_player)) {
 			stateName = "werewolf";
@@ -577,6 +608,12 @@ namespace Dynamics {
 			state.postLoadApplyPending = false;
 			logger::debug("Post-load preset timer expired");
 		}
+
+		// camera is handeled through a sepearte hook
+		if (state.currentCamera != VCD::Preset::kCameraDialogue) {
+			ApplyCameraPreset(cameraPreset);
+		}
+		return;
 	}
 
 	void UpdateNPCs(const RE::PlayerCharacter* a_player)

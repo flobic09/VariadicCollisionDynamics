@@ -15,6 +15,7 @@
   "Tools.Visualization.Header" : "Bump Visualization",
   "Tools.Visualization.DrawPlayerCollision": "Draw Player Collision",
   "Tools.Visualization.DrawNearbyActors": "Draw Nearby Actors",
+    "Tools.Visualization.DrawCameraCollision": "Draw Camera Collision",
 
   "Tools.Visualization.NearbyActorRadius": "Nearby Actor Radius",
   "Tools.Visualization.NearbyActorScanInterval": "Nearby Actor Scan Interval",
@@ -40,8 +41,7 @@
   "Tools.Default.Button": "Default",
   "Tools.Default.Tooltip": "Reset Tools panel settings to defaults without saving.",
 
-  
-  
+
   /* ============================================================
      DYNAMICS TAB
      ============================================================ */
@@ -49,7 +49,7 @@
   "Dynamics.Editor.Column.Fix": "Fix",
   "Dynamics.Editor.Column.Scale": "Scale",
 
-  "Dynamics.Editor.Radius": "Radius",
+  "Dynamics.Editor.Radius": "Radius (Camera)",
   "Dynamics.Editor.TopOffset": "Top Offset",
   "Dynamics.Editor.BottomOffset": "Bottom Offset",
   "Dynamics.Editor.ForwardOffset": "Forward Offset",
@@ -79,6 +79,8 @@
 
   "Dynamics.NPC.EnableCheckbox": "Enable NPC Dynamics",
 
+  "Dynamics.Camera.EnableCheckbox": "Enable Camera Dynamics",
+
   "Dynamics.NPC.Column.State": "State",
   "Dynamics.NPC.Column.Preset": "Preset",
 
@@ -87,14 +89,21 @@
   "Dynamics.NPC.State.GuardNeutral": "Guard Neutral",
   "Dynamics.NPC.State.GuardCombat": "Guard Combat",
 
+  "Dynamics.Camera.State.Indoor": "Indoor",
+  "Dynamics.Camera.State.Outdoor": "Outdoor",
+  "Dynamics.Camera.State.Dialogue": "Dialogue",
+
   "Dynamics.Menu.PlayerDynamicsHeader": "Player Dynamics",
   "Dynamics.Menu.NPCDynamicsHeader": "NPC Dynamics",
+  "Dynamics.Menu.CameraDynamicsHeader": "Camera Dynamics",
 
   "Dynamics.Menu.SaveSettingsButton": "Save Dynamics",
   "Dynamics.Menu.SaveSettingsTooltip": "Save dynamics state and preset overrides to disk.",
 
   "Dynamics.Menu.ResetDefaultsButton": "Default",
   "Dynamics.Menu.ResetDefaultsTooltip": "Reset dynamics state and preset overrides to defaults without saving.",
+
+  "Dynamics.Camera.ResetButton": "Default",
 
   "Dynamics.Editor.WindowTitlePrefix": "Edit",
   "Dynamics.Editor.WindowTitlePreset": "Preset",
