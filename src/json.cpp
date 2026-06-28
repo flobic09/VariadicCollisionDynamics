@@ -227,6 +227,7 @@ namespace JSON {
 
 		data["presets"] = PresetOverridesToJson(a_settings.presets);
 		data["npcPresets"] = PresetOverridesToJson(a_settings.npcPresets);
+		data["cameraPresets"] = PresetOverridesToJson(a_settings.cameraPresets);
 		data["actorPresets"] = NPCActorPresetsToJson(a_settings);
 		return data;
 	}
@@ -240,6 +241,7 @@ namespace JSON {
 		FOREACH_COLOR_SETTING(COLOR2GETTER)
 		PresetOverridesFromJson(a_json, "presets", a_settings.presets);
 		PresetOverridesFromJson(a_json, "npcPresets", a_settings.npcPresets);
+		PresetOverridesFromJson(a_json, "cameraPresets", a_settings.cameraPresets);
 		NPCActorPresetsFromJson(a_json, a_settings);
 	}
 

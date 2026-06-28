@@ -7,6 +7,21 @@ vcpkg_from_github(
     HEAD_REF main
 )
 
+set(DRAW_DEBUG_HPP "${SOURCE_PATH}/include/CLibUtilsQTR/DrawDebug.hpp")
+file(READ "${DRAW_DEBUG_HPP}" DRAW_DEBUG_CONTENT)
+string(REPLACE
+    "constexpr float DRAW_LOC_MAX_DIF = 5.0f;"
+    "constexpr float DRAW_LOC_MAX_DIF = 2.0f;"
+    DRAW_DEBUG_PATCHED
+    "${DRAW_DEBUG_CONTENT}"
+)
+if(DRAW_DEBUG_PATCHED STREQUAL DRAW_DEBUG_CONTENT)
+    if(NOT DRAW_DEBUG_CONTENT MATCHES "constexpr float DRAW_LOC_MAX_DIF = 2\\.0f;")
+        message(FATAL_ERROR "Failed to patch DRAW_LOC_MAX_DIF in ${DRAW_DEBUG_HPP}")
+    endif()
+endif()
+file(WRITE "${DRAW_DEBUG_HPP}" "${DRAW_DEBUG_PATCHED}")
+
 # Install codes
 set(CLibUtilsQTR_SOURCE	${SOURCE_PATH}/include/CLibUtilsQTR)
 file(INSTALL ${CLibUtilsQTR_SOURCE} DESTINATION ${CURRENT_PACKAGES_DIR}/include)

@@ -1,6 +1,7 @@
 #include "tools_panel.hpp"
 
 #include <CLibUtilsQTR/DrawDebug.hpp>
+#include <algorithm>
 #include <iterator>
 #include "translate.hpp"
 
@@ -67,20 +68,23 @@ namespace UI {
 
         const auto playerLine = Trans::Tr("Tools.Visualization.Line.Player");
         const auto npcLine = Trans::Tr("Tools.Visualization.Line.NPC");
+        const auto cameraLine = Trans::Tr("Tools.Visualization.Line.Camera");
         const auto colorLabel = Trans::Tr("Tools.Visualization.Line.Color");
         const auto thicknessLabel = Trans::Tr("Tools.Visualization.Line.Thickness");
 
         GUI::ImVec2 playerLineSize{};
         GUI::ImVec2 npcLineSize{};
+        GUI::ImVec2 cameraLineSize{};
         GUI::ImVec2 colorLabelSize{};
         GUI::ImVec2 thicknessLabelSize{};
 
         GUI::CalcTextSize(&playerLineSize, playerLine.c_str(), nullptr, false, -1.0F);
         GUI::CalcTextSize(&npcLineSize, npcLine.c_str(), nullptr, false, -1.0F);
+        GUI::CalcTextSize(&cameraLineSize, cameraLine.c_str(), nullptr, false, -1.0F);
         GUI::CalcTextSize(&colorLabelSize, colorLabel.c_str(), nullptr, false, -1.0F);
         GUI::CalcTextSize(&thicknessLabelSize, thicknessLabel.c_str(), nullptr, false, -1.0F);
 
-        const auto lineLabelWidth = (playerLineSize.x > npcLineSize.x ? playerLineSize.x : npcLineSize.x) + 12.0F;
+        const auto lineLabelWidth = std::max({ playerLineSize.x, npcLineSize.x, cameraLineSize.x }) + 12.0F;
         const auto colorControlWidth = colorLabelSize.x + 12.0F > 260.0F ? colorLabelSize.x + 12.0F : 260.0F;
         const auto thicknessControlWidth = thicknessLabelSize.x + 12.0F > 260.0F ? thicknessLabelSize.x + 12.0F : 260.0F;
 
@@ -119,6 +123,17 @@ namespace UI {
             GUI::TableNextColumn();
             GUI::SetNextItemWidth(thicknessControlWidth);
             GUI::SliderFloat("##NPCLineThickness", &settings.drawNPCLineThickness, 0.25F, 5.0F);
+
+            GUI::TableNextRow();
+            GUI::TableNextColumn();
+            GUI::AlignTextToFramePadding();
+            GUI::TextUnformatted(cameraLine.c_str());
+            GUI::TableNextColumn();
+            GUI::SetNextItemWidth(colorControlWidth);
+            GUI::ColorEdit4("##CameraLineColor", settings.drawCameraColor.data(), colorEditFlags);
+            GUI::TableNextColumn();
+            GUI::SetNextItemWidth(thicknessControlWidth);
+            GUI::SliderFloat("##CameraLineThickness", &settings.drawCameraLineThickness, 0.25F, 5.0F);
 
             GUI::EndTable();
         }

@@ -63,7 +63,8 @@ namespace Settings {
 		}
 
 		if (!PresetOverrideMapsEqual(a_left.presets, a_right.presets) ||
-			!PresetOverrideMapsEqual(a_left.npcPresets, a_right.npcPresets)) {
+			!PresetOverrideMapsEqual(a_left.npcPresets, a_right.npcPresets) ||
+			!PresetOverrideMapsEqual(a_left.cameraPresets, a_right.cameraPresets)) {
 			return false;
 		}
 
@@ -88,6 +89,7 @@ namespace Settings {
 		FOREACH_PRESET_STATE(SETTING2COPY)
 		a_target.presets = a_source.presets;
 		a_target.npcPresets = a_source.npcPresets;
+		a_target.cameraPresets = a_source.cameraPresets;
 		a_target.npcActorPresets = a_source.npcActorPresets;
 	}
 
@@ -155,7 +157,7 @@ namespace Settings {
 	{
 		return WriteJsonFile(GetSettingsPath(), JSON::ToolsToJson(a_settings), "Settings") &&
 			WriteJsonFile(GetPlayerStatePath(), JSON::PlayerStateToJson(a_settings), "Player state") &&
-			WriteJsonFile(GetNPCStatePath(), JSON::NPCStateToJson(a_settings), "NPC state");
+			WriteJsonFile(GetNPCStatePath(), JSON::NPCStateToJson(a_settings), "NPC state") &&
 			WriteJsonFile(GetCameraStatePath(), JSON::CameraStateToJson(a_settings), "Camera state");
 	}
 
@@ -170,7 +172,8 @@ namespace Settings {
 		}
 
 		if (!PresetOverrideMapsEqual(a_left.presets, a_right.presets) ||
-			!PresetOverrideMapsEqual(a_left.npcPresets, a_right.npcPresets)) {
+			!PresetOverrideMapsEqual(a_left.npcPresets, a_right.npcPresets) ||
+			!PresetOverrideMapsEqual(a_left.cameraPresets, a_right.cameraPresets)) {
 			return false;
 		}
 
@@ -221,6 +224,7 @@ namespace Settings {
 				presetConfig->data.RecalculateHeight();
 			}
 		}
+
 	}
 
 	void ApplyToolSettings(const VCDSettings& a_settings)
@@ -268,6 +272,18 @@ namespace Settings {
 		return it != settings.npcPresets.end() && it->second.edited ? &it->second.data : nullptr;
 	}
 
+	const VCD::CollisionData* GetCameraPresetOverride(const VCD::Preset& a_preset)
+	{
+		const auto& settings = GetSettings();
+		const auto* presetConfig = VCD::Manager::GetSingleton().GetPresetConfig(a_preset);
+		if (!presetConfig) {
+			return nullptr;
+		}
+
+		const auto it = settings.cameraPresets.find(presetConfig->key);
+		return it != settings.cameraPresets.end() && it->second.edited ? &it->second.data : nullptr;
+	}
+
 	void MarkNPCPresetEdited(const VCD::Preset& a_preset, const VCD::CollisionData& a_data)
 	{
 		auto& settings = GetSettings();
@@ -291,6 +307,31 @@ namespace Settings {
 		}
 
 		settings.npcPresets.erase(presetConfig->key);
+	}
+
+	void MarkCameraPresetEdited(const VCD::Preset& a_preset, const VCD::CollisionData& a_data)
+	{
+		auto& settings = GetSettings();
+		const auto* presetConfig = VCD::Manager::GetSingleton().GetPresetConfig(a_preset);
+		if (!presetConfig) {
+			return;
+		}
+
+		auto& presetOverride = settings.cameraPresets[presetConfig->key];
+		presetOverride.edited = true;
+		presetOverride.data = a_data;
+		presetOverride.data.RecalculateHeight();
+	}
+
+	void ClearCameraPresetEdited(const VCD::Preset& a_preset)
+	{
+		auto& settings = GetSettings();
+		const auto* presetConfig = VCD::Manager::GetSingleton().GetPresetConfig(a_preset);
+		if (!presetConfig) {
+			return;
+		}
+
+		settings.cameraPresets.erase(presetConfig->key);
 	}
 
 	const VCD::CollisionData* GetNPCActorPresetOverride(const RE::FormID& a_formID, const VCD::Preset& a_preset)
@@ -346,6 +387,7 @@ namespace Settings {
 			}
 			a_settings.presets.erase(std::string(a_key));
 			a_settings.npcPresets.erase(std::string(a_key));
+			a_settings.cameraPresets.erase(std::string(a_key));
 			return;
 		}
 
@@ -448,6 +490,16 @@ namespace Settings {
 			}
 
 			JSON::NPCStateFromJson(data, settings);
+			loaded = true;
+		}
+
+		if (const auto path = GetCameraStatePath(); fs::exists(path, ec)) {
+			JSON::json data{};
+			if (!ReadJsonFile(path, data, "Camera state")) {
+				return false;
+			}
+
+			JSON::CameraStateFromJson(data, settings);
 			loaded = true;
 		}
 

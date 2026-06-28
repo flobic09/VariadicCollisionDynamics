@@ -131,7 +131,7 @@ namespace Dynamics {
 	{
 		auto& config = GetConfig();
 		if (!a_cell) {
-			return config.neutral;
+			return config.cameraNeutral;
 		}
 
 		return a_cell->IsInteriorCell() ? config.cameraIndoor : config.cameraOutdoor;

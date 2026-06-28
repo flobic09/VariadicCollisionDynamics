@@ -340,12 +340,19 @@ namespace Dynamics {
 	void ApplyCameraPreset(const VCD::Preset& a_preset)
 	{
 		auto& state = GetPresetState();
+		if (!Settings::GetSettings().enableCameraDynamics) {
+			RestoreCameraToVanilla();
+			return;
+		}
 
 		const auto* presetConfig = VCD::Manager::GetSingleton().GetPresetConfig(a_preset);
 		if (!presetConfig) return;
-		ApplyCameraCollisionRadius(presetConfig->data.capsule.radius);
+		const auto* collisionData = Settings::GetCameraPresetOverride(a_preset);
+		if (!collisionData) {
+			collisionData = &presetConfig->data;
+		}
+		ApplyCameraCollisionRadius(collisionData->capsule.radius);
 
-		// update current camera preset state
 		state.currentCamera = a_preset;  
 		logger::info("set camera state to {}", VCD::PresetName(a_preset));
 	}
@@ -470,6 +477,7 @@ namespace Dynamics {
 	void RestoreCameraToVanilla() {
 
 		ApplyCameraCollisionRadius(15.0f);
+		GetPresetState().currentCamera = VCD::Preset::kCameraVanilla;
 	}
 
 	void SchedulePostLoadApply()
@@ -599,6 +607,9 @@ namespace Dynamics {
 		}
 
 		if (!forceApply && state.lastCell == cell && state.applied && state.current == preset && std::strcmp(state.stateName, stateName) == 0 && state.poseFlags == poseFlags) {
+			if (Settings::GetSettings().enableCameraDynamics && state.currentCamera != VCD::Preset::kCameraDialogue && state.currentCamera != cameraPreset) {
+				ApplyCameraPreset(cameraPreset);
+			}
 			RetryTransitionPreset(a_player, preset, stateName);
 			return;
 		}
@@ -609,8 +620,7 @@ namespace Dynamics {
 			logger::debug("Post-load preset timer expired");
 		}
 
-		// camera is handeled through a sepearte hook
-		if (state.currentCamera != VCD::Preset::kCameraDialogue) {
+		if (Settings::GetSettings().enableCameraDynamics && state.currentCamera != VCD::Preset::kCameraDialogue && (forceApply || state.currentCamera != cameraPreset)) {
 			ApplyCameraPreset(cameraPreset);
 		}
 		return;

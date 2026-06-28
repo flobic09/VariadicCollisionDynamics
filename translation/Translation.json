@@ -26,6 +26,7 @@
 
   "Tools.Visualization.Line.Player": "Player",
   "Tools.Visualization.Line.NPC": "NPC",
+  "Tools.Visualization.Line.Camera": "Camera",
   "Tools.Visualization.Line.Color": "Color",
   "Tools.Visualization.Line.Thickness": "Thickness",
 
@@ -112,6 +113,7 @@
   "Dynamics.Editor.PresetLabel": "Preset",
 
   "Dynamics.Editor.PreviewTooltip": "Temporarily applies this preset for tuning. Closing the editor restores the current dynamics state after a short delay.",
+  "Dynamics.Editor.CameraPreviewTooltip": "Temporarily applies this camera collision radius for tuning. Closing the editor restores the active camera state.",
 
   "Dynamics.Editor.ResetButton": "Default",
   "Dynamics.Editor.ResetTooltip": "Restore this editor to its base preset values without saving it to disk.",

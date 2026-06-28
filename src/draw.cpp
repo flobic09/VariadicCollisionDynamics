@@ -151,30 +151,36 @@ namespace DebugAPI_IMPL::Draw {
         return true;
     }
 
+    void DrawSphere(RE::bhkSimpleShapePhantom* a_phantom, const RE::NiColorA& a_color, float a_lineThickness)
+    {
+        static RE::NiPoint3 cameraPos = DebugAPI_IMPL::GetCameraPos();
+
+        auto* sphere = VCD::Manager::GetSingleton().GetCameraPhantomShape(a_phantom);
+        if (!sphere) return;
+
+        const auto radius = sphere->radius * VCD::GetPresetScale();
+        DebugAPI_IMPL::DebugAPI::GetSingleton()->DrawSphere(cameraPos, radius, 100, a_color, a_lineThickness);
+    }
+
     void DrawCameraBumper()
     {
         auto* playerCamera = RE::PlayerCamera::GetSingleton();
         if (!playerCamera) return;
         auto& cameraRTD = playerCamera->GetRuntimeData();
         if (!cameraRTD.unk120) return;
-        auto* api = DebugAPI_IMPL::DebugAPI::GetSingleton();
 
-        auto DrawSphere = [&](RE::bhkSimpleShapePhantom* bhkPhantom, RE::NiColorA color) {
+        struct CameraCollisionPhantoms
+        {
+            RE::NiPointer<RE::bhkSimpleShapePhantom> unk00;
+            RE::NiPointer<RE::bhkSimpleShapePhantom> unk08;
+        };
 
-            // static position becaue otherwise you cannot look at the debug sphere 
-            // of the camera while actively looking through it 
-          static  RE::NiPoint3 cameraPos = DebugAPI_IMPL::GetCameraPos();
+        auto* cameraPhantoms = reinterpret_cast<CameraCollisionPhantoms*>(cameraRTD.unk120);
+        const auto& settings = Settings::GetSettings();
+        const auto color = VCD::ToNiColorA(settings.drawCameraColor);
 
-            auto manager = VCD::Manager::GetSingleton();
-            auto* sphere = manager.GetCameraPhantomShape(bhkPhantom);
-            if (!sphere) return;
-            constexpr float hkScale = 69.99125f;
-            float radius = sphere->radius * hkScale;
-            api->DrawSphere(cameraPos, radius, 100, color, 2.0f);
-            };
-
-        DrawSphere(cameraRTD.unk120->unk00.get(), RE::NiColorA(1.f, 0.f, 1.f, 1.f));
-        DrawSphere(cameraRTD.unk120->unk08.get(), RE::NiColorA(0.f, 1.f, 1.f, 1.f));
+        DrawSphere(cameraPhantoms->unk00.get(), color, settings.drawCameraLineThickness);
+        DrawSphere(cameraPhantoms->unk08.get(), color, settings.drawCameraLineThickness);
     }
 
 

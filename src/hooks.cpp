@@ -143,9 +143,11 @@ RE::BSEventNotifyControl MenuTopicManagerHook::ProcessMenuOpenCloseEvent(
 	if (!a_this || !a_event ||
 		a_event->menuName != RE::DialogueMenu::MENU_NAME) return func(a_this, a_event, a_eventSource);
 
-	if (a_event->opening) {
-		auto& state = Dynamics::GetPresetState();
+	if (!Settings::GetSettings().enableCameraDynamics) {
+		return func(a_this, a_event, a_eventSource);
+	}
 
+	if (a_event->opening) {
 		Dynamics::ApplyCameraPreset(VCD::Preset::kCameraDialogue); 
 	}
 
@@ -153,6 +155,9 @@ RE::BSEventNotifyControl MenuTopicManagerHook::ProcessMenuOpenCloseEvent(
 	else {
 
 		auto player = RE::PlayerCharacter::GetSingleton(); 
+		if (!player) {
+			return func(a_this, a_event, a_eventSource);
+		}
 
 		auto* cell = player->GetParentCell();
 		if (!cell) {

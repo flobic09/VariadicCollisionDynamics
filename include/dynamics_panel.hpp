@@ -19,6 +19,7 @@ namespace UI {
         bool preview{ false };
         bool npcPreview{ false };
         bool npcGlobal{ false };
+        bool camera{ false };
         bool autoEnabledDraw{ false };
         bool previousDrawCollision{ false };
         bool previousDrawNearbyActors{ false };

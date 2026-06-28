@@ -31,6 +31,7 @@
 #define FOREACH_TOOL_FLOAT_SETTING(S) \
 	S(drawLineThickness, 1.2F) \
 	S(drawNPCLineThickness, 1.2F) \
+	S(drawCameraLineThickness, 2.0F) \
 	S(previewRestoreDelay, 3.0F) \
 	S(nearbyActorDrawRadius, 1500.0F) \
 	S(nearbyActorScanInterval, 0.5F)
@@ -51,7 +52,8 @@
 
 #define FOREACH_COLOR_SETTING(S) \
 	S(drawColor, 1.0F, 1.0F, 0.0F, 1.0F) \
-	S(drawNPCColor, 1.0F, 0.0F, 1.0F, 1.0F)
+	S(drawNPCColor, 1.0F, 0.0F, 1.0F, 1.0F) \
+	S(drawCameraColor, 1.0F, 0.0F, 1.0F, 1.0F)
 
 #define BOOL2DEF(S, D) bool S = D;
 #define FLOAT2DEF(S, D) float S = D;

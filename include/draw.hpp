@@ -56,6 +56,8 @@ namespace DebugAPI_IMPL::Draw {
 
     void DrawNearbyActorBumpers();
 
+    void DrawSphere(RE::bhkSimpleShapePhantom* a_phantom, const RE::NiColorA& a_color, float a_lineThickness);
+
     void DrawCameraBumper();
 
 }
