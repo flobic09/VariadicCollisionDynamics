@@ -643,6 +643,7 @@ bool Manager::CreatePreset(const std::string& a_name, const CollisionData& a_dat
     config.data.RecalculateHeight();
     config.loaded = true;
     config.builtIn = false;
+    config.fileBacked = true;
 
     if (!SavePresetConfiguration(config, a_error)) {
         return false;

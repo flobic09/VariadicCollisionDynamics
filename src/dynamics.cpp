@@ -20,7 +20,7 @@ namespace Dynamics {
 			return false;
 		}
 
-		if (a_actor->IsDead() || a_actor->IsDisabled() || !a_actor->Get3D() || (!a_actor->IsGuard() && !a_actor->HasKeywordString("ActorTypeNPC"))) {
+		if (a_actor->IsDead() || a_actor->IsDisabled() || !a_actor->Get3D() || !VCD::Race::IsSupportedNPCPresetActor(a_actor)) {
 			return false;
 		}
 
@@ -41,6 +41,16 @@ namespace Dynamics {
 		auto& config = GetConfig();
 		const auto isCombat = a_actor && a_actor->IsInCombat();
 		const auto isGuard = a_actor && a_actor->IsGuard();
+
+		// Ordered by priority: Specialized presets > Guard in combat > guard > combat > neutral.
+		if (const auto presetKey = VCD::Race::GetSupportedNPCPresetKey(a_actor); !presetKey.empty()) {
+			if (const auto* presetConfig = VCD::Manager::GetSingleton().GetPresetConfig(presetKey)) {
+				if (presetConfig->fileBacked) {
+					a_stateName = presetConfig->key.c_str();
+					return presetConfig->preset;
+				}
+			}
+		}
 
 		if (isGuard && isCombat) {
 			a_stateName = "guardCombat";
@@ -661,10 +671,10 @@ namespace Dynamics {
 				return;
 			}
 
-			const auto radiusSquared = settings.nearbyActorDrawRadius * settings.nearbyActorDrawRadius;
-			if (UpdateNPCPoseFixHandles(processLists->highActorHandles, a_player, radiusSquared, settings.nearbyActorDrawLimit) ||
-				UpdateNPCPoseFixHandles(processLists->middleHighActorHandles, a_player, radiusSquared, settings.nearbyActorDrawLimit) ||
-				UpdateNPCPoseFixHandles(processLists->middleLowActorHandles, a_player, radiusSquared, settings.nearbyActorDrawLimit)) {
+			const auto radiusSquared = settings.nearbyActorScanRadius * settings.nearbyActorScanRadius;
+			if (UpdateNPCPoseFixHandles(processLists->highActorHandles, a_player, radiusSquared, settings.nearbyActorScanLimit) ||
+				UpdateNPCPoseFixHandles(processLists->middleHighActorHandles, a_player, radiusSquared, settings.nearbyActorScanLimit) ||
+				UpdateNPCPoseFixHandles(processLists->middleLowActorHandles, a_player, radiusSquared, settings.nearbyActorScanLimit)) {
 				return;
 			}
 			return;
@@ -688,10 +698,10 @@ namespace Dynamics {
 			return;
 		}
 
-		const auto radiusSquared = settings.nearbyActorDrawRadius * settings.nearbyActorDrawRadius;
-		if (!UpdateNPCHandles(processLists->highActorHandles, a_player, radiusSquared, settings.nearbyActorDrawLimit) &&
-			!UpdateNPCHandles(processLists->middleHighActorHandles, a_player, radiusSquared, settings.nearbyActorDrawLimit)) {
-			UpdateNPCHandles(processLists->middleLowActorHandles, a_player, radiusSquared, settings.nearbyActorDrawLimit);
+		const auto radiusSquared = settings.nearbyActorScanRadius * settings.nearbyActorScanRadius;
+		if (!UpdateNPCHandles(processLists->highActorHandles, a_player, radiusSquared, settings.nearbyActorScanLimit) &&
+			!UpdateNPCHandles(processLists->middleHighActorHandles, a_player, radiusSquared, settings.nearbyActorScanLimit)) {
+			UpdateNPCHandles(processLists->middleLowActorHandles, a_player, radiusSquared, settings.nearbyActorScanLimit);
 		}
 
 		RetireDistantNPCStates();

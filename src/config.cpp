@@ -87,6 +87,7 @@ namespace VCD {
 
             a_preset.data.RecalculateHeight();
             a_preset.loaded = true;
+            a_preset.fileBacked = true;
             return true;
         }
         catch (const json::exception& e) {

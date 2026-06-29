@@ -32,8 +32,10 @@
 	S(drawLineThickness, 1.2F) \
 	S(drawNPCLineThickness, 1.2F) \
 	S(drawCameraLineThickness, 2.0F) \
-	S(previewRestoreDelay, 3.0F) \
-	S(nearbyActorDrawRadius, 1500.0F) \
+	S(previewRestoreDelay, 3.0F)
+
+#define FOREACH_DYNAMICS_FLOAT_SETTING(S) \
+	S(nearbyActorScanRadius, 1500.0F) \
 	S(nearbyActorScanInterval, 0.5F)
 
 #define FOREACH_POSE_FIX_FLOAT_SETTING(S) \
@@ -44,11 +46,18 @@
 
 #define FOREACH_FLOAT_SETTING(S) \
 	FOREACH_TOOL_FLOAT_SETTING(S) \
+	FOREACH_DYNAMICS_FLOAT_SETTING(S) \
 	FOREACH_POSE_FIX_FLOAT_SETTING(S)
 
+#define FOREACH_TOOL_INT_SETTING(S) \
+	S(logLevel, 1)
+
+#define FOREACH_DYNAMICS_INT_SETTING(S) \
+	S(nearbyActorScanLimit, 16)
+
 #define FOREACH_INT_SETTING(S) \
-	S(logLevel, 1) \
-	S(nearbyActorDrawLimit, 16)
+	FOREACH_TOOL_INT_SETTING(S) \
+	FOREACH_DYNAMICS_INT_SETTING(S)
 
 #define FOREACH_COLOR_SETTING(S) \
 	S(drawColor, 1.0F, 1.0F, 0.0F, 1.0F) \

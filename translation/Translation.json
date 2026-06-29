@@ -17,10 +17,6 @@
   "Tools.Visualization.DrawNearbyActors": "Draw Nearby Actors",
     "Tools.Visualization.DrawCameraCollision": "Draw Camera Collision",
 
-  "Tools.Visualization.NearbyActorRadius": "Nearby Actor Radius",
-  "Tools.Visualization.NearbyActorScanInterval": "Nearby Actor Scan Interval",
-  "Tools.Visualization.NearbyActorLimit": "Nearby Actor Limit",
-
   "Tools.Visualization.AutoDrawWhileEditing": "Auto Draw While Editing",
   "Tools.Visualization.AutoDrawWhileEditing.Tooltip": "Temporarily enables drawing when preset sliders are changed, then restores the previous draw setting when the editor closes.",
 
@@ -79,6 +75,9 @@
   "Dynamics.PlayerDynamics.State.Neutral": "Neutral",
 
   "Dynamics.NPC.EnableCheckbox": "Enable NPC Dynamics",
+  "Dynamics.NPC.NearbyActorRadius": "Nearby NPC Radius",
+  "Dynamics.NPC.NearbyActorScanInterval": "Nearby NPC Scan Interval",
+  "Dynamics.NPC.NearbyActorLimit": "Nearby NPC Limit",
 
   "Dynamics.Camera.EnableCheckbox": "Enable Camera Dynamics",
 

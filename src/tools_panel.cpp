@@ -53,15 +53,6 @@ namespace UI {
             ClearDrawLines();
         }
 
-        GUI::SetNextItemWidth(260.0F);
-        GUI::SliderFloat(Trans::Tr("Tools.Visualization.NearbyActorRadius").c_str(), &settings.nearbyActorDrawRadius, 256.0F, 8192.0F);
-
-        GUI::SetNextItemWidth(260.0F);
-        GUI::SliderFloat(Trans::Tr("Tools.Visualization.NearbyActorScanInterval").c_str(), &settings.nearbyActorScanInterval, 0.1F, 2.0F);
-
-        GUI::SetNextItemWidth(260.0F);
-        GUI::SliderInt(Trans::Tr("Tools.Visualization.NearbyActorLimit").c_str(), &settings.nearbyActorDrawLimit, 1, 64);
-
         GUI::Checkbox(Trans::Tr("Tools.Visualization.AutoDrawWhileEditing").c_str(), &settings.autoDrawPreview);
 
         WrappedTooltip(Trans::Tr("Tools.Visualization.AutoDrawWhileEditing.Tooltip").c_str());

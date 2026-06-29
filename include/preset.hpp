@@ -140,6 +140,7 @@ namespace VCD {
 
         bool loaded{ false };
         bool builtIn{ false };
+        bool fileBacked{ false };
     };
 
     inline void InitializePresetConfigs(std::vector<PresetConfig>& a_presets)

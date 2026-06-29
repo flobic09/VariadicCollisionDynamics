@@ -1,5 +1,6 @@
 #include "draw.hpp"
 
+#include "dynamics.hpp"
 #include "helper.hpp"
 #include "manager.hpp"
 
@@ -71,33 +72,9 @@ namespace DebugAPI_IMPL::Draw {
 
     bool CanDrawActorBumper(const RE::Actor* a_actor, const RE::PlayerCharacter* a_player, const float& a_radiusSquared, NearbyActorDrawState* a_state = nullptr)
     {
-        if (!a_actor || !a_player) {
-            return false;
-        }
-
-        if (a_actor == a_player) {
-            return false;
-        }
-
-        if (a_actor->IsDead() || a_actor->IsDisabled() || !a_actor->Get3D()) {
+        if (!Dynamics::CanApplyNPCDynamics(const_cast<RE::Actor*>(a_actor), a_player, a_radiusSquared)) {
             if (a_state) {
-                a_state->rejectedStateCount++;
-            }
-            return false;
-        }
-
-        const auto* actorCell = a_actor->GetParentCell();
-        const auto* playerCell = a_player->GetParentCell();
-        if (!actorCell || !playerCell || ((actorCell->IsInteriorCell() || playerCell->IsInteriorCell()) && actorCell != playerCell)) {
-            if (a_state) {
-                a_state->rejectedCellCount++;
-            }
-            return false;
-        }
-
-        if (GetDistanceSquared(a_actor->GetPosition(), a_player->GetPosition()) > a_radiusSquared) {
-            if (a_state) {
-                a_state->rejectedDistanceCount++;
+                a_state->rejectedCount++;
             }
             return false;
         }
@@ -111,8 +88,11 @@ namespace DebugAPI_IMPL::Draw {
             return false;
         }
 
+        const auto* player = RE::PlayerCharacter::GetSingleton();
+		const bool isPlayer = a_actor == player;
+
         VCD::Manager::ActorBumperContext context{};
-        if (!VCD::Manager::GetSingleton().GetActorBumperContext(a_actor, context, a_actor == RE::PlayerCharacter::GetSingleton())) {
+        if (!VCD::Manager::GetSingleton().GetActorBumperContext(a_actor, context, isPlayer)) {
             return false;
         }
 
@@ -127,7 +107,6 @@ namespace DebugAPI_IMPL::Draw {
         context.controller->GetPosition(controllerPositionHK, false);
         const auto controllerPosition = VCD::ToNiPoint3(controllerPositionHK) * VCD::GetPresetScale();
         auto actorPosition = a_actor->GetPosition();
-		const bool isPlayer = a_actor == RE::PlayerCharacter::GetSingleton();
         if (isPlayer) {
             actorPosition = controllerPosition;
         }
@@ -218,7 +197,7 @@ namespace DebugAPI_IMPL::Draw {
 
             state.handles.push_back(handle);
             state.acceptedCount++;
-            if (static_cast<int>(state.handles.size()) >= settings.nearbyActorDrawLimit) {
+            if (static_cast<int>(state.handles.size()) >= settings.nearbyActorScanLimit) {
                 state.limitReached = true;
                 return true;
             }
@@ -236,14 +215,12 @@ namespace DebugAPI_IMPL::Draw {
         state.scannedMiddleHighCount = 0;
         state.scannedMiddleLowCount = 0;
         state.acceptedCount = 0;
-        state.rejectedStateCount = 0;
-        state.rejectedCellCount = 0;
-        state.rejectedDistanceCount = 0;
+        state.rejectedCount = 0;
         state.limitReached = false;
 
         const auto& settings = Settings::GetSettings();
-        if (!a_player || settings.nearbyActorDrawLimit <= 0) {
-            logger::info("Nearby actor scan skipped. player={}, limit={}", a_player != nullptr, settings.nearbyActorDrawLimit);
+        if (!a_player || settings.nearbyActorScanLimit <= 0) {
+            logger::info("Nearby actor scan skipped. player={}, limit={}", a_player != nullptr, settings.nearbyActorScanLimit);
             return;
         }
 
@@ -253,7 +230,7 @@ namespace DebugAPI_IMPL::Draw {
             return;
         }
 
-        const auto radiusSquared = settings.nearbyActorDrawRadius * settings.nearbyActorDrawRadius;
+        const auto radiusSquared = settings.nearbyActorScanRadius * settings.nearbyActorScanRadius;
         if (ScanActorHandles(processLists->highActorHandles, state.scannedHighCount, a_player, radiusSquared) ||
             ScanActorHandles(processLists->middleHighActorHandles, state.scannedMiddleHighCount, a_player, radiusSquared) ||
             ScanActorHandles(processLists->middleLowActorHandles, state.scannedMiddleLowCount, a_player, radiusSquared)) {
@@ -290,7 +267,7 @@ namespace DebugAPI_IMPL::Draw {
 
         int drawnCount = 0;
         int filteredCount = 0;
-        const auto radiusSquared = settings.nearbyActorDrawRadius * settings.nearbyActorDrawRadius;
+        const auto radiusSquared = settings.nearbyActorScanRadius * settings.nearbyActorScanRadius;
         for (auto& handle : state.handles) {
             auto actorPtr = handle.get();
             auto* actor = actorPtr.get();

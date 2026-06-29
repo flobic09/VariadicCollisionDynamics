@@ -43,7 +43,7 @@ namespace UI {
         for (auto& handle : drawState.handles) {
             auto actorPtr = handle.get();
             auto* actor = actorPtr.get();
-            if (!actor || (!actor->IsGuard() && !actor->HasKeywordString("ActorTypeNPC"))) {
+            if (!VCD::Race::IsSupportedNPCPresetActor(actor)) {
                 continue;
             }
 
@@ -897,6 +897,15 @@ namespace UI {
                 editor.open = false;
             }
         }
+
+        GUI::SetNextItemWidth(260.0F);
+        GUI::SliderFloat(Trans::Tr("Dynamics.NPC.NearbyActorRadius").c_str(), &settings.nearbyActorScanRadius, 256.0F, 8192.0F);
+
+        GUI::SetNextItemWidth(260.0F);
+        GUI::SliderFloat(Trans::Tr("Dynamics.NPC.NearbyActorScanInterval").c_str(), &settings.nearbyActorScanInterval, 0.1F, 2.0F);
+
+        GUI::SetNextItemWidth(260.0F);
+        GUI::SliderInt(Trans::Tr("Dynamics.NPC.NearbyActorLimit").c_str(), &settings.nearbyActorScanLimit, 1, 64);
 
         GUI::BeginDisabled(!settings.enableNPCDynamics);
 

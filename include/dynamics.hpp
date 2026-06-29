@@ -2,6 +2,7 @@
 
 #include "manager.hpp"
 #include "preset_states.hpp"
+#include "race.hpp"
 
 #include <chrono>
 #include <cstring>
@@ -200,6 +201,8 @@ namespace Dynamics {
 	void ApplyCameraPreset(const VCD::Preset& a_preset);
 
 	bool ApplyEnvironmentPreset(const RE::PlayerCharacter* a_player, const bool& a_force = false);
+
+	bool CanApplyNPCDynamics(RE::Actor* a_actor, const RE::PlayerCharacter* a_player, const float& a_radiusSquared);
 
 	bool StartPresetPreview(const RE::PlayerCharacter* a_player, const VCD::Preset& a_preset);
 
