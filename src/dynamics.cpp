@@ -157,8 +157,16 @@ namespace Dynamics {
 
 	bool ApplyNPCPreset(RE::Actor* a_actor, const VCD::Preset& a_preset, const char* a_stateName)
 	{
-		if (!a_actor || GetNPCPreviewState().active) {
+		if (!a_actor) {
 			return false;
+		}
+
+		auto& preview = GetNPCPreviewState();
+		if (preview.active && preview.blockActorUpdates) {
+			auto actorPtr = preview.actor.get();
+			if (actorPtr.get() == a_actor) {
+				return false;
+			}
 		}
 
 		const auto formID = a_actor->GetFormID();
@@ -426,6 +434,7 @@ namespace Dynamics {
 
 		auto& preview = GetNPCPreviewState();
 		preview.active = true;
+		preview.blockActorUpdates = true;
 		preview.actor = a_actor->CreateRefHandle();
 		preview.preset = a_preset;
 

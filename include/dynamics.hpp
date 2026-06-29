@@ -53,6 +53,8 @@ namespace Dynamics {
 	{
 		bool active{ false };
 
+		bool blockActorUpdates{ false };
+
 		RE::ActorHandle actor{};
 
 		VCD::Preset preset{ VCD::Preset::kVanilla };

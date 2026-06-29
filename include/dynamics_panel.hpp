@@ -143,6 +143,10 @@ namespace UI {
 
     void EndAutoDraw();
 
+    bool StartNPCEditorPreview(RE::Actor* a_actor);
+
+    void StopNPCEditorPreview();
+
     void StopPresetEditorPreview();
 
     void ClosePresetEditor();

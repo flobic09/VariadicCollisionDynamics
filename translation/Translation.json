@@ -46,7 +46,7 @@
   "Dynamics.Editor.Column.Fix": "Fix",
   "Dynamics.Editor.Column.Scale": "Scale",
 
-  "Dynamics.Editor.Radius": "Radius (Camera)",
+  "Dynamics.Editor.Radius": "Radius",
   "Dynamics.Editor.TopOffset": "Top Offset",
   "Dynamics.Editor.BottomOffset": "Bottom Offset",
   "Dynamics.Editor.ForwardOffset": "Forward Offset",
