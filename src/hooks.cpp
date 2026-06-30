@@ -125,10 +125,10 @@ void SneakHandlerProcessButton::thunk(
 
 void SneakHandlerProcessButton::Install()
 {
-	const auto dllPath = VCD::GetPluginsDir() / "DynamicCollisionAdjustment.dll";
-
-	// dont install if dynamic collision adjustment is installed
-	if (std::filesystem::exists(dllPath)) return;
+	if (VCD::IsDynamicCollisionAdjustmentInstalled()) {
+        logger::info("DynamicCollisionAdjustment detected; sneak hook disabled.");
+        return;
+    }
 	
 	func = REL::Relocation<std::uintptr_t>(RE::SneakHandler::VTABLE[0]).write_vfunc(0x04, thunk);
 	logger::info("process sneak button hook installed");

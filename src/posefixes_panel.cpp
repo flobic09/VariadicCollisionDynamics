@@ -36,22 +36,25 @@ namespace UI {
 
 			GUI::TableNextRow();
 			GUI::TableNextColumn();
+			const auto dynamicCollisionAdjustmentInstalled = VCD::IsDynamicCollisionAdjustmentInstalled();
+			GUI::BeginDisabled(dynamicCollisionAdjustmentInstalled);
 			const auto sneakingFixChanged = GUI::Checkbox(Trans::Tr("Dynamics.PoseFix.PlayerSneaking").c_str(), &settings.fixPlayerSneaking);
+			GUI::EndDisabled();
 			GUI::TableNextColumn();
 			GUI::SetCursorPosX(GUI::GetCursorPosX() + 12.0F);
-			GUI::BeginDisabled(!settings.fixPlayerSneaking);
+			GUI::BeginDisabled(dynamicCollisionAdjustmentInstalled || !settings.fixPlayerSneaking);
 			GUI::SetNextItemWidth(260.0F);
 			const auto sneakingScaleChanged = GUI::SliderFloat(Trans::Tr("Dynamics.PoseFix.PlayerSneakingScale").c_str(), &settings.playerSneakingScale, 0.3F, 1.0F);
 			GUI::EndDisabled();
 
 			GUI::TableNextRow();
 			GUI::TableNextColumn();
-			GUI::BeginDisabled(!settings.enableNPCDynamics);
+			GUI::BeginDisabled(dynamicCollisionAdjustmentInstalled || !settings.enableNPCDynamics);
 			const auto npcSneakingChanged = GUI::Checkbox(Trans::Tr("Dynamics.PoseFix.NPCSneaking").c_str(), &settings.fixNPCSneaking);
 			GUI::EndDisabled();
 			GUI::TableNextColumn();
 			GUI::SetCursorPosX(GUI::GetCursorPosX() + 12.0F);
-			GUI::BeginDisabled(!settings.enableNPCDynamics || !settings.fixNPCSneaking);
+			GUI::BeginDisabled(dynamicCollisionAdjustmentInstalled || !settings.enableNPCDynamics || !settings.fixNPCSneaking);
 			GUI::SetNextItemWidth(260.0F);
 			const auto npcSneakingScaleChanged = GUI::SliderFloat(Trans::Tr("Dynamics.PoseFix.NPCSneakingScale").c_str(), &settings.npcSneakingScale, 0.3F, 1.0F);
 			GUI::EndDisabled();

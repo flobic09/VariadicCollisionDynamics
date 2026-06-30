@@ -60,6 +60,13 @@ namespace VCD {
         return GetPluginsDir() / PRODUCT_NAME;
     }
 
+    inline bool IsDynamicCollisionAdjustmentInstalled()
+    {
+        static const bool installed = std::filesystem::exists(VCD::GetPluginsDir() / "DynamicCollisionAdjustment.dll");
+
+        return installed;
+    }
+
     inline float GetPresetScale()
     {
         return RE::bhkWorld::GetWorldScaleInverse();

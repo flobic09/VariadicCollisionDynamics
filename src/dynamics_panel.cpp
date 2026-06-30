@@ -875,20 +875,22 @@ namespace UI {
         // Grey out top / bottom offset if camera.
         GUI::BeginDisabled(isCamera); 
 
-        auto topOffset = a_current.capsule.point1.z - defaultTop;
-        if (GUI::SliderFloat(Trans::Tr("Dynamics.Editor.TopOffset").c_str(), &topOffset, -kHeightLimit, kHeightLimit)) {
-            const auto topOffsetLimit = std::clamp((a_current.capsule.point2.z - defaultTop) * 0.5F + kTolerance, -kHeightLimit, kHeightLimit);
-            topOffset = std::clamp(topOffset, topOffsetLimit, kHeightLimit);
-            a_current.capsule.point1.z = defaultTop + topOffset;
+        auto top = a_current.capsule.point1.z;
+        const auto topMin = defaultTop - kHeightLimit;
+        const auto topMax = defaultTop + kHeightLimit;
+        if (GUI::SliderFloat(Trans::Tr("Dynamics.Editor.TopOffset").c_str(), &top, topMin, topMax)) {
+            const auto minTop = std::clamp((a_current.capsule.point2.z + defaultTop) * 0.5F + kTolerance, topMin, topMax);
+            a_current.capsule.point1.z = std::clamp(top, minTop, topMax);
             result.changed = true;
         }
         result.active |= GUI::IsItemActive();
 
-        auto bottomOffset = a_current.capsule.point2.z - defaultBottom;
-        if (GUI::SliderFloat(Trans::Tr("Dynamics.Editor.BottomOffset").c_str(), &bottomOffset, -kHeightLimit, kHeightLimit)) {
-            const auto bottomOffsetLimit = std::clamp((a_current.capsule.point1.z - defaultBottom) * 0.5F - kTolerance, -kHeightLimit, kHeightLimit);
-            bottomOffset = std::clamp(bottomOffset, -kHeightLimit, bottomOffsetLimit);
-            a_current.capsule.point2.z = defaultBottom + bottomOffset;
+        auto bottom = a_current.capsule.point2.z;
+        const auto bottomMin = defaultBottom - kHeightLimit;
+        const auto bottomMax = defaultBottom + kHeightLimit;
+        if (GUI::SliderFloat(Trans::Tr("Dynamics.Editor.BottomOffset").c_str(), &bottom, bottomMin, bottomMax)) {
+            const auto maxBottom = std::clamp((a_current.capsule.point1.z + defaultBottom) * 0.5F - kTolerance, bottomMin,  bottomMax);
+            a_current.capsule.point2.z = std::clamp(bottom, bottomMin, maxBottom);
             result.changed = true;
         }
         result.active |= GUI::IsItemActive();
