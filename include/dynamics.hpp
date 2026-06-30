@@ -206,6 +206,10 @@ namespace Dynamics {
 
 	bool CanApplyNPCDynamics(RE::Actor* a_actor, const RE::PlayerCharacter* a_player, const float& a_radiusSquared);
 
+	VCD::Preset GetNPCPreset(const RE::Actor* a_actor, const char*& a_stateName);
+
+	bool ApplyNPCPreset(RE::Actor* a_actor, const VCD::Preset& a_preset, const char* a_stateName);
+
 	bool StartPresetPreview(const RE::PlayerCharacter* a_player, const VCD::Preset& a_preset);
 
 	bool StartNPCPresetPreview(RE::Actor* a_actor, const VCD::Preset& a_preset);

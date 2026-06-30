@@ -6,7 +6,7 @@
 using namespace VCD;
 
 // Core logic of capsule shaping based on actor's preset and pose.
-bool Manager::SetCollisionData(const RE::Actor* a_actor, const CollisionData& a_data, const Preset& a_anchorPreset, const char* a_name, const PoseFlags& a_poseFlags, const bool& a_log)
+bool Manager::SetCollisionData(const RE::Actor* a_actor, const CollisionData& a_data, const Preset& a_anchorPreset, const char* a_name, const PoseFlags& a_poseFlags, const bool& a_log, const bool& a_rebuildConvex)
 {
     ActorBumperContext context{};
     if (!GetActorBumperContext(a_actor, context, a_log)) {
@@ -107,7 +107,7 @@ bool Manager::SetCollisionData(const RE::Actor* a_actor, const CollisionData& a_
     lastActorState.sittingPoseApplied = a_poseFlags.isSitting;
     lastActorState.sneakingPoseApplied = isPlayerSneaking || isNPCSneaking;
 
-    const auto convexRebuild = SetConvexShape(a_actor, context.controller, mappedRadius, mappedPoint1Z, mappedPoint2Z, a_data.bump.translation, a_name, a_log);
+    const auto convexRebuild = a_rebuildConvex && SetConvexShape(a_actor, context.controller, mappedRadius, mappedPoint1Z, mappedPoint2Z, a_data.bump.translation, a_name, a_log);
 
     if (a_log) {
         logger::info(
@@ -143,6 +143,7 @@ bool Manager::SetCollisionData(const RE::Actor* a_actor, const CollisionData& a_
     }
     return true;
 }
+
 //apply radius and xy collision only
 bool Manager::SetCameraCollisionData(const VCD::CollisionData& a_data)
 {
