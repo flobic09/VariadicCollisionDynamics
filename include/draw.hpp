@@ -1,44 +1,33 @@
 #pragma once
 
+#include "helper.hpp"
 #include "settings.hpp"
-#include "logger.hpp"
+
+#include <array>
+#include <cmath>
 
 namespace DebugAPI_IMPL::Draw {
 
     inline constexpr int32_t CAPSULE_SIDES = 16;
 
-    struct NearbyActorDrawState
+    struct ActorCapsuleDrawContext
     {
-        std::vector<RE::ActorHandle> handles{};
-        std::chrono::steady_clock::time_point nextScan{};
-        int scannedCount{ 0 };
-        int scannedHighCount{ 0 };
-        int scannedMiddleHighCount{ 0 };
-        int scannedMiddleLowCount{ 0 };
-        int acceptedCount{ 0 };
-        int rejectedCount{ 0 };
-        bool limitReached{ false };
+        bool isPlayer{ false };
+        RE::NiPoint3 actorPosition{};
+        std::array<float, 4> color{};
+        float lineThickness{ 1.0F };
     };
 
-    inline NearbyActorDrawState& GetNearbyActorDrawState()
+    inline void TransformActorCapsule(const RE::Actor* a_actor, const ActorCapsuleDrawContext& a_context, const RE::NiPoint3& a_vertexA, const RE::NiPoint3& a_vertexB, RE::NiPoint3& a_outA, RE::NiPoint3& a_outB)
     {
-        static NearbyActorDrawState state{};
-        return state;
+        const auto yaw = -a_actor->data.angle.z;
+        const auto c = std::cos(yaw);
+        const auto s = std::sin(yaw);
+        a_outA = VCD::RotatePoint(a_vertexA, c, s) + a_context.actorPosition;
+        a_outB = VCD::RotatePoint(a_vertexB, c, s) + a_context.actorPosition;
     }
 
-    inline void LogNearbyActorScan(const NearbyActorDrawState& a_state, const Settings::VCDSettings& a_settings)
-    {
-        logger::debug("Nearby actor scan: scanned={} (high={}, middleHigh={}, middleLow={}), accepted={}, rejected={}, radius={}, limit={}, limitReached={}",
-            a_state.scannedCount,
-            a_state.scannedHighCount,
-            a_state.scannedMiddleHighCount,
-            a_state.scannedMiddleLowCount,
-            a_state.acceptedCount,
-            a_state.rejectedCount,
-            a_settings.nearbyActorScanRadius,
-            a_settings.nearbyActorScanLimit,
-            a_state.limitReached);
-    }
+    bool GetActorCapsuleDrawContext(const RE::Actor* a_actor, RE::bhkCharacterController* a_controller, ActorCapsuleDrawContext& a_context);
 
     void DrawPlayerBumper();
 

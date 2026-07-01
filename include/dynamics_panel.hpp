@@ -10,8 +10,36 @@
 #include "posefixes.hpp"
 
 #include <array>
+#include <chrono>
+#include <cstddef>
 
 namespace UI {
+
+    // Editor debounce time.
+    inline constexpr auto kEditorCollisionApplyDebounce = std::chrono::milliseconds(250);
+
+    struct CollisionEditorLimits
+    {
+        float heightOffset{ 4.0F };
+        float radius{ 1.0F };
+        float xyOffset{ 30.0F };
+    };
+
+    inline constexpr std::array<CollisionEditorLimits, static_cast<size_t>(VCD::Race::CollisionLimitClass::kTotal)> kCollisionEditorLimits
+    {
+        CollisionEditorLimits{ 0.6F, 1.0F, 30.0F },
+        CollisionEditorLimits{ 0.8F, 1.0F, 30.0F },
+        CollisionEditorLimits{ 2.5F, 1.5F, 30.0F },
+        CollisionEditorLimits{ 2.0F, 1.2F, 30.0F },
+        CollisionEditorLimits{ 3.0F, 1.0F, 30.0F },
+        CollisionEditorLimits{ 0.0F, 30.0F, 30.0F }
+    };
+
+    inline constexpr CollisionEditorLimits GetCollisionEditorLimits(const VCD::Race::CollisionLimitClass& a_limitClass)
+    {
+        const auto index = static_cast<size_t>(a_limitClass);
+        return index < kCollisionEditorLimits.size() ? kCollisionEditorLimits[index] : kCollisionEditorLimits[static_cast<size_t>(VCD::Race::CollisionLimitClass::kDefault)];
+    }
 
     struct PresetEditorState
     {
@@ -23,11 +51,15 @@ namespace UI {
         bool autoEnabledDraw{ false };
         bool previousDrawCollision{ false };
         bool previousDrawNearbyActors{ false };
+        bool collisionApplyPending{ false };
+        bool collisionApplyAfterRelease{ false };
 
         RE::ActorHandle previewActor{};
         VCD::Preset preset{ VCD::Preset::kVanilla };
         VCD::CollisionData defaults{};
         VCD::CollisionData current{};
+        CollisionEditorLimits limits{};
+        std::chrono::steady_clock::time_point collisionApplyAt{};
     };
 
     struct CreatePresetEditorState
@@ -38,6 +70,7 @@ namespace UI {
         std::string error{};
         VCD::CollisionData defaults{};
         VCD::CollisionData current{};
+        CollisionEditorLimits limits{};
     };
 
     struct DeletePresetEditorState
@@ -47,12 +80,10 @@ namespace UI {
         std::string error{};
     };
 
-    struct NPCActorOption
+    struct CollisionSliderResult
     {
-        RE::ActorHandle handle{};
-        std::string name{};
-        std::string label{};
-        RE::FormID formID{ 0 };
+        bool changed{ false };
+        bool active{ false };
     };
 
     inline PresetEditorState& GetPresetEditorState()
@@ -100,20 +131,6 @@ namespace UI {
         return actorPtr.get();
     }
 
-    inline std::string GetActorName(RE::Actor* a_actor)
-    {
-        if (!a_actor) {
-            return "Actor";
-        }
-
-        const auto* name = a_actor->GetDisplayFullName();
-        if (!name || std::strlen(name) == 0) {
-            return "Actor";
-        }
-
-        return name;
-    }
-
     inline const VCD::CollisionData* GetDefaultPresetData(const VCD::Preset& a_preset)
     {
         const auto* defaultPresetConfig = VCD::Manager::GetSingleton().GetDefaultPresetConfig(a_preset);
@@ -127,6 +144,11 @@ namespace UI {
         }
 
         return GetDefaultPresetData(a_preset);
+    }
+
+    inline void CloseDeletePresetEditor()
+    {
+        GetDeletePresetEditorState() = {};
     }
 
     bool PresetCombo(const char* a_label, VCD::Preset& a_preset);
@@ -158,7 +180,5 @@ namespace UI {
     void CloseCreatePresetEditor();
 
     void OpenDeletePresetEditor();
-
-    void CloseDeletePresetEditor();
 
 }

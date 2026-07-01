@@ -3,6 +3,7 @@
 #include "dynamics.hpp"
 #include "helper.hpp"
 #include "manager.hpp"
+#include "scan.hpp"
 
 #include <CLibUtilsQTR/DrawDebug.hpp>
 
@@ -70,18 +71,6 @@ namespace DebugAPI_IMPL::Draw {
         DebugAPI::GetSingleton()->DrawLineForMS(vertexA - yAxis * radius, vertexB - yAxis * radius, liftetimeMS, color, lineThickness);
     }
 
-    bool CanDrawActorBumper(const RE::Actor* a_actor, const RE::PlayerCharacter* a_player, const float& a_radiusSquared, NearbyActorDrawState* a_state = nullptr)
-    {
-        if (!Dynamics::CanApplyNPCDynamics(const_cast<RE::Actor*>(a_actor), a_player, a_radiusSquared)) {
-            if (a_state) {
-                a_state->rejectedCount++;
-            }
-            return false;
-        }
-
-        return true;
-    }
-
     bool DrawActorBumper(const RE::Actor* a_actor)
     {
         if (!a_actor) {
@@ -103,30 +92,19 @@ namespace DebugAPI_IMPL::Draw {
             return false;
         }
 
-        RE::hkVector4 controllerPositionHK;
-        context.controller->GetPosition(controllerPositionHK, false);
-        const auto controllerPosition = VCD::ToNiPoint3(controllerPositionHK) * VCD::GetPresetScale();
-        auto actorPosition = a_actor->GetPosition();
-        if (isPlayer) {
-            actorPosition = controllerPosition;
-        }
-        else {
-            actorPosition.z = controllerPosition.z;
+        ActorCapsuleDrawContext drawContext{};
+        if (!GetActorCapsuleDrawContext(a_actor, context.controller, drawContext)) {
+            return false;
         }
 
         RE::NiPoint3 vertexA = VCD::ToNiPoint3(bumper->vertexA) * VCD::GetPresetScale();
         RE::NiPoint3 vertexB = VCD::ToNiPoint3(bumper->vertexB) * VCD::GetPresetScale();
         float radius = bumper->radius * VCD::GetPresetScale();
-        float yaw = -a_actor->data.angle.z;
-        float c = std::cos(yaw);
-        float s = std::sin(yaw);
-        RE::NiPoint3 a = VCD::RotatePoint(vertexA, c, s) + actorPosition;
-        RE::NiPoint3 b = VCD::RotatePoint(vertexB, c, s) + actorPosition;
+        RE::NiPoint3 a{};
+        RE::NiPoint3 b{};
+        TransformActorCapsule(a_actor, drawContext, vertexA, vertexB, a, b);
 
-        const auto& settings = Settings::GetSettings();
-		const std::array<float, 4> color = isPlayer ? settings.drawColor : settings.drawNPCColor;
-		const float lineThickness = isPlayer ? settings.drawLineThickness : settings.drawNPCLineThickness;
-        DrawCapsule(a, b, radius, 1, VCD::ToNiColorA(color), lineThickness);
+        DrawCapsule(a, b, radius, 1, VCD::ToNiColorA(drawContext.color), drawContext.lineThickness);
         return true;
     }
 
@@ -192,85 +170,6 @@ namespace DebugAPI_IMPL::Draw {
         DrawSphere(cameraPhantoms->unk00.get(), color, settings.drawCameraLineThickness);
     }
 
-
-    bool HasCachedActor(const NearbyActorDrawState& a_state, const RE::Actor* a_actor)
-    {
-        if (!a_actor) {
-            return false;
-        }
-
-        for (auto& handle : a_state.handles) {
-            auto actorPtr = handle.get();
-            if (actorPtr.get() == a_actor) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    bool ScanActorHandles(const RE::BSTArray<RE::ActorHandle>& a_handles, int& a_bucketCount, const RE::PlayerCharacter* a_player, const float& a_radiusSquared)
-    {
-        auto& state = GetNearbyActorDrawState();
-        const auto& settings = Settings::GetSettings();
-
-        for (auto& handle : a_handles) {
-            state.scannedCount++;
-            a_bucketCount++;
-
-            auto actorPtr = handle.get();
-            auto* actor = actorPtr.get();
-
-            if (!CanDrawActorBumper(actor, a_player, a_radiusSquared, &state) || HasCachedActor(state, actor)) {
-                continue;
-            }
-
-            state.handles.push_back(handle);
-            state.acceptedCount++;
-            if (static_cast<int>(state.handles.size()) >= settings.nearbyActorScanLimit) {
-                state.limitReached = true;
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    void RefreshNearbyActorCache(const RE::PlayerCharacter* a_player)
-    {
-        auto& state = GetNearbyActorDrawState();
-        state.handles.clear();
-        state.scannedCount = 0;
-        state.scannedHighCount = 0;
-        state.scannedMiddleHighCount = 0;
-        state.scannedMiddleLowCount = 0;
-        state.acceptedCount = 0;
-        state.rejectedCount = 0;
-        state.limitReached = false;
-
-        const auto& settings = Settings::GetSettings();
-        if (!a_player || settings.nearbyActorScanLimit <= 0) {
-            logger::info("Nearby actor scan skipped. player={}, limit={}", a_player != nullptr, settings.nearbyActorScanLimit);
-            return;
-        }
-
-        auto* processLists = RE::ProcessLists::GetSingleton();
-        if (!processLists) {
-            logger::info("Nearby actor scan skipped. ProcessLists unavailable");
-            return;
-        }
-
-        const auto radiusSquared = settings.nearbyActorScanRadius * settings.nearbyActorScanRadius;
-        if (ScanActorHandles(processLists->highActorHandles, state.scannedHighCount, a_player, radiusSquared) ||
-            ScanActorHandles(processLists->middleHighActorHandles, state.scannedMiddleHighCount, a_player, radiusSquared) ||
-            ScanActorHandles(processLists->middleLowActorHandles, state.scannedMiddleLowCount, a_player, radiusSquared)) {
-            LogNearbyActorScan(state, settings);
-            return;
-        }
-
-        LogNearbyActorScan(state, settings);
-    }
-
     void DrawPlayerBumper()
     {
         auto* player = RE::PlayerCharacter::GetSingleton();
@@ -284,12 +183,12 @@ namespace DebugAPI_IMPL::Draw {
             return;
         }
 
-        auto& state = GetNearbyActorDrawState();
+        auto& state = Scan::GetNearbyActorScanState();
         const auto& settings = Settings::GetSettings();
         const auto now = std::chrono::steady_clock::now();
         bool scanned = false;
         if (now >= state.nextScan) {
-            RefreshNearbyActorCache(player);
+            Scan::RefreshNearbyActorCache(player);
             scanned = true;
             const auto interval = std::chrono::duration<float>(settings.nearbyActorScanInterval);
             state.nextScan = now + std::chrono::duration_cast<std::chrono::steady_clock::duration>(interval);
@@ -301,7 +200,7 @@ namespace DebugAPI_IMPL::Draw {
         for (auto& handle : state.handles) {
             auto actorPtr = handle.get();
             auto* actor = actorPtr.get();
-            if (CanDrawActorBumper(actor, player, radiusSquared)) {
+            if (Scan::CanScanNearbyActor(actor, player, radiusSquared)) {
                 if (DrawActorBumper(actor)) {
                     drawnCount++;
                 }
@@ -313,6 +212,32 @@ namespace DebugAPI_IMPL::Draw {
         if (scanned) {
             logger::debug("Nearby actor draw: cached={}, drawn={}, filtered={}", state.handles.size(), drawnCount, filteredCount);
         }
+    }
+
+    bool GetActorCapsuleDrawContext(const RE::Actor* a_actor, RE::bhkCharacterController* a_controller, ActorCapsuleDrawContext& a_context)
+    {
+        if (!a_actor || !a_controller) {
+            return false;
+        }
+
+        const auto* player = RE::PlayerCharacter::GetSingleton();
+        a_context.isPlayer = a_actor == player;
+
+        RE::hkVector4 controllerPositionHK;
+        a_controller->GetPosition(controllerPositionHK, false);
+        const auto controllerPosition = VCD::ToNiPoint3(controllerPositionHK) * VCD::GetPresetScale();
+        a_context.actorPosition = a_actor->GetPosition();
+        if (a_context.isPlayer) {
+            a_context.actorPosition = controllerPosition;
+        }
+        else {
+            a_context.actorPosition.z = controllerPosition.z;
+        }
+
+        const auto& settings = Settings::GetSettings();
+        a_context.color = a_context.isPlayer ? settings.drawColor : settings.drawNPCColor;
+        a_context.lineThickness = a_context.isPlayer ? settings.drawLineThickness : settings.drawNPCLineThickness;
+        return true;
     }
 
 }

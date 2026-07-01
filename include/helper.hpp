@@ -3,6 +3,8 @@
 #include "plugin.hpp"
 
 #include <array>
+#include <cctype>
+#include <cstring>
 #include <string>
 #include <filesystem>
 #include <string_view>
@@ -56,6 +58,13 @@ namespace VCD {
     inline fs::path GetPluginDataPath()
     {
         return GetPluginsDir() / PRODUCT_NAME;
+    }
+
+    inline bool IsDynamicCollisionAdjustmentInstalled()
+    {
+        static const bool installed = std::filesystem::exists(VCD::GetPluginsDir() / "DynamicCollisionAdjustment.dll");
+
+        return installed;
     }
 
     inline float GetPresetScale()
@@ -114,6 +123,20 @@ namespace VCD {
         }
 
         return false;
+    }
+
+    inline std::string GetActorName(RE::Actor* a_actor)
+    {
+        if (!a_actor) {
+            return "Actor";
+        }
+
+        const auto* name = a_actor->GetDisplayFullName();
+        if (!name || std::strlen(name) == 0) {
+            return "Actor";
+        }
+
+        return name;
     }
 
     inline const char* GetOccupiedFurnitureName(const RE::Actor* a_actor)
