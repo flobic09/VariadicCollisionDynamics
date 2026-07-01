@@ -179,14 +179,14 @@ bool Manager::SetCameraCollisionData(const VCD::CollisionData& a_data)
             sphere->radius = a_data.capsule.radius;
 
             hkpPhantom->motionState.transform.translation.quad.m128_f32[0] =
-                a_data.bump.translation.x * RE::bhkWorld::GetWorldScale();
+                a_data.bump.translation.x;
 
             hkpPhantom->motionState.transform.translation.quad.m128_f32[1] =
-                a_data.bump.translation.y * RE::bhkWorld::GetWorldScale();
+                a_data.bump.translation.y;
         };
-
-    Apply(cameraRTD.unk120->unk00.get());
-    Apply(cameraRTD.unk120->unk08.get());
+  
+    Apply(cameraRTD.unk120->unk00.g
+    //Apply(cameraRTD.unk120->unk08.get());
 
     Dynamics::ApplyCameraCollisionRadius(a_data.capsule.radius);
 

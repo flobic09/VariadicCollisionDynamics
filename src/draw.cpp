@@ -132,29 +132,42 @@ namespace DebugAPI_IMPL::Draw {
 
     void DrawSphere(RE::bhkSimpleShapePhantom* a_phantom, const RE::NiColorA& a_color, float a_lineThickness)
     {
-         RE::NiPoint3 cameraPos = DebugAPI_IMPL::GetCameraPos();
+        auto* playerCamera = RE::PlayerCamera::GetSingleton();
+        if (!playerCamera) return;
 
-         auto* playerCamera = RE::PlayerCamera::GetSingleton();
-         if (!playerCamera) return;
+        auto& rt = playerCamera->GetRuntimeData2();
+        float yaw = rt.yaw;
+        RE::NiPoint3 forward{ std::cos(yaw), std::sin(yaw), 0.0f };
 
-         auto& rt = playerCamera->GetRuntimeData2();
-
-         float yaw = rt.yaw;
-
-         RE::NiPoint3 forward{
-             std::cos(yaw),
-             std::sin(yaw),
-             0.0f
-         };
-
-         //push camera draw in front of player so they can actually see it
-         RE::NiPoint3 projectedPos = cameraPos + forward * 100.0f;
-
-        auto* sphere = VCD::Manager::GetSingleton().GetCameraPhantomShape(a_phantom);
+        auto& manager = VCD::Manager::GetSingleton();
+        auto* sphere = manager.GetCameraSphereShape(a_phantom);
         if (!sphere) return;
 
+        auto* camHkpPhantom = manager.GetCameraSimpleShapePhantom(a_phantom);
+        if (!camHkpPhantom) return;
+
+        auto& translation = camHkpPhantom->motionState.transform.translation;
+        RE::NiPoint3 hkPos(
+            translation.quad.m128_f32[0],
+            translation.quad.m128_f32[1],
+            translation.quad.m128_f32[2]
+        );
+
+        logger::info(
+            "HK POS RAW: x={} y={} z={}",
+            translation.quad.m128_f32[0],
+            translation.quad.m128_f32[1],
+            translation.quad.m128_f32[2]
+        );
+
+        RE::NiPoint3 realCollisionPos = hkPos * VCD::GetPresetScale();
+
+        // push in front so it's visible, but offset relative to the real collision center
+        RE::NiPoint3 projectedPos = realCollisionPos + forward * 100.0f;
+
         const auto radius = sphere->radius * VCD::GetPresetScale();
-        DebugAPI_IMPL::DebugAPI::GetSingleton()->DrawSphere(projectedPos, radius, 100, a_color, a_lineThickness);
+
+        DebugAPI_IMPL::DebugAPI::GetSingleton()->DrawSphere(projectedPos, radius, 10, a_color, a_lineThickness);
     }
 
     void DrawCameraBumper()
@@ -162,14 +175,13 @@ namespace DebugAPI_IMPL::Draw {
         auto* playerCamera = RE::PlayerCamera::GetSingleton();
         if (!playerCamera) return;
 
-
-
         auto& cameraRTD = playerCamera->GetRuntimeData();
         if (!cameraRTD.unk120) return;
 
         struct CameraCollisionPhantoms
         {
             RE::NiPointer<RE::bhkSimpleShapePhantom> unk00;
+            //I can't find a instance of where 08 is used probobly special camrera state
             RE::NiPointer<RE::bhkSimpleShapePhantom> unk08;
         };
 
@@ -178,7 +190,6 @@ namespace DebugAPI_IMPL::Draw {
         const auto color = VCD::ToNiColorA(settings.drawCameraColor);
 
         DrawSphere(cameraPhantoms->unk00.get(), color, settings.drawCameraLineThickness);
-        DrawSphere(cameraPhantoms->unk08.get(), color, settings.drawCameraLineThickness);
     }
 
 

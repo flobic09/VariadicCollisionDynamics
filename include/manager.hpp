@@ -124,7 +124,9 @@ namespace VCD {
 
         bool RestorePresetDefault(const Preset& a_preset);
 
-        RE::hkpSphereShape* GetCameraPhantomShape(RE::bhkSimpleShapePhantom* bhkPhantom);
+        RE::hkpSimpleShapePhantom* GetCameraSimpleShapePhantom(RE::bhkSimpleShapePhantom* bhkPhantom);
+
+        RE::hkpSphereShape* GetCameraSphereShape(RE::bhkSimpleShapePhantom* bhkPhantom);
 
         bool IsCameraPreset(VCD::Preset a_preset) const;
 
