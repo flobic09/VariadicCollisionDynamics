@@ -208,13 +208,13 @@ void ThirdPersonState_SetRotation::thunk(
 	// Modify ONLY the phantom's motion state
 	auto& translation = hkpPhantom->motionState.transform.translation;
 
-	logger::info("Phantom BEFORE Z: {:.2f}", translation.quad.m128_f32[2]);
+	// logger::info("Phantom BEFORE Z: {:.2f}", translation.quad.m128_f32[2]);
 
 	// Apply your offset - ONLY to the phantom!
 	translation.quad.m128_f32[0] += cameraGlobals::CollisionPosX;
 	translation.quad.m128_f32[1] += cameraGlobals::CollisionPosY;
 
-	logger::info("Phantom AFTER Z: {:.2f}", translation.quad.m128_f32[2]);
+	// logger::info("Phantom AFTER Z: {:.2f}", translation.quad.m128_f32[2]);
 }
 
 void ThirdPersonState_SetRotation::Install()

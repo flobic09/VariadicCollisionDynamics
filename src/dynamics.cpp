@@ -187,7 +187,7 @@ namespace Dynamics {
 
 		auto& manager = VCD::Manager::GetSingleton();
 		const auto* collisionData = GetNPCCollisionData(formID, a_preset);
-		if (!collisionData || !manager.SetCollisionData(a_actor, *collisionData, a_preset, VCD::PresetName(a_preset), poseFlags, false)) {
+		if (!collisionData || !manager.SetCollisionData(a_actor, *collisionData, a_preset, VCD::PresetName(a_preset), poseFlags, true)) {
 			return false;
 		}
 

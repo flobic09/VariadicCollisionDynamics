@@ -90,6 +90,17 @@ namespace UI {
         return changed;
     }
 
+    VCD::Preset GetDefaultNPCActorEditorPreset(const RE::Actor* a_actor)
+    {
+        if (const auto presetKey = VCD::Race::GetSupportedNPCPresetKey(a_actor); !presetKey.empty()) {
+            if (const auto* presetConfig = VCD::Manager::GetSingleton().GetPresetConfig(presetKey); presetConfig && presetConfig->fileBacked) {
+                return presetConfig->preset;
+            }
+        }
+
+        return VCD::Preset::kVanilla;
+    }
+
     VCD::Race::CollisionLimitClass GetPresetCollisionLimitClass(const VCD::Preset& a_preset, const RE::Actor* a_actor = nullptr)
     {
         if (a_actor) {
@@ -970,6 +981,7 @@ namespace UI {
         if (!selectedActor && !options.empty()) {
             GetSelectedNPCActor() = options.front().handle;
             selectedActor = GetSelectedNPCActorPtr();
+            a_selectedPreset = GetDefaultNPCActorEditorPreset(selectedActor);
         }
 
         if (selectedActor) {
@@ -993,6 +1005,7 @@ namespace UI {
 
                 if (GUI::Selectable(option.label.c_str(), selected)) {
                     GetSelectedNPCActor() = option.handle;
+                    a_selectedPreset = GetDefaultNPCActorEditorPreset(actorPtr.get());
                 }
             }
             GUI::EndCombo();
