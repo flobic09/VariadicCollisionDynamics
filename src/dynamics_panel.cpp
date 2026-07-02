@@ -1039,8 +1039,6 @@ namespace UI {
 
     void RenderCreateDeleteButtons()
     {
-        constexpr auto buttonWidth = 220.0F;
-        constexpr auto buttonHeight = 50.0F;
         static const auto circlePlusText = FontAwesome::UnicodeToUtf8(Icons::kCirclePlus);
 
         GUI::PushStyleVar(GUI::ImGuiStyleVar_FrameRounding, 5.0F);
@@ -1054,7 +1052,7 @@ namespace UI {
         const bool createPreset =
             GUI::Button(
                 ("        " + Trans::Tr("Dynamics.CreatePreset.Button") + "##CreateNewPreset").c_str(),
-                GUI::ImVec2{ buttonWidth, buttonHeight }
+                GUI::ImVec2{ kPresetActionButtonWidth, kPresetActionButtonHeight }
             );
 
         WrappedTooltip(
@@ -1117,7 +1115,7 @@ namespace UI {
         const bool deletePreset =
             GUI::Button(
                 ("        " + Trans::Tr("Dynamics.DeletePreset.Button") + "##DeletePreset").c_str(),
-                GUI::ImVec2{ buttonWidth, buttonHeight }
+                GUI::ImVec2{ kPresetActionButtonWidth, kPresetActionButtonHeight }
             );
         WrappedTooltip(hasCustomPresets ? Trans::Tr("Dynamics.DeletePreset.Tooltip.Custom").c_str() :
                                           Trans::Tr("Dynamics.DeletePreset.Tooltip.Default").c_str());
@@ -1140,10 +1138,119 @@ namespace UI {
         GUI::PopStyleColor(5);
         GUI::PopStyleVar(2);
         GUI::EndDisabled();
+    }
+
+    void ResetDynamicsToDefaults()
+    {
+        const auto wasNPCDynamicsEnabled = Settings::GetSettings().enableNPCDynamics;
+        const auto wasCameraDynamicsEnabled = Settings::GetSettings().enableCameraDynamics;
+
+        Settings::ResetDynamics();
+
+        if (wasNPCDynamicsEnabled) {
+            Dynamics::RestoreNPCsToVanilla();
+        }
+        if (wasCameraDynamicsEnabled) {
+            Dynamics::RestoreCameraToVanilla();
+        }
+
+        if (RefreshPresetEditor()) {
+            auto& editor = GetPresetEditorState();
+
+            if (editor.camera && editor.preview) {
+                Dynamics::ApplyCameraCollisionRadius(editor.current.capsule.radius);
+            }
+            else if (editor.npcPreview) {
+                auto actorPtr = editor.previewActor.get();
+                auto* actor = actorPtr.get();
+
+                if (actor) {
+                    VCD::Manager::GetSingleton().SetCollisionData(
+                        actor,
+                        editor.current,
+                        editor.preset,
+                        VCD::PresetName(editor.preset),
+                        PoseFixes::NPCPose(actor),
+                        false
+                    );
+                }
+            }
+            else if (editor.npcGlobal) {
+                if (auto* actor = GetSelectedNPCActorPtr()) {
+                    VCD::Manager::GetSingleton().SetCollisionData(
+                        actor,
+                        editor.current,
+                        editor.preset,
+                        VCD::PresetName(editor.preset),
+                        PoseFixes::NPCPose(actor),
+                        false
+                    );
+                }
+            }
+            else {
+                PreviewPreset(editor.preset);
+            }
+        }
+    }
+
+    void RenderDynamicsSaveResetButtons()
+    {
+        if (IconCTAButton(Trans::Tr("Dynamics.Menu.SaveSettingsButton").c_str(), Settings::IsDirty(), Icons::kSave)) {
+            Settings::Save();
+        }
+
+        WrappedTooltip(
+            Trans::Tr("Dynamics.Menu.SaveSettingsTooltip").c_str()
+        );
+
+        GUI::SameLine(0.0F, 6.0F);
+
+        const bool changed = !Settings::IsDynamicsDefault();
+
+        if (IconCTAButton(Trans::Tr("Dynamics.Menu.ResetDefaultsButton").c_str(), changed, Icons::kReset)) {
+            ResetDynamicsToDefaults();
+        }
+
+        WrappedTooltip(
+            Trans::Tr("Dynamics.Menu.ResetDefaultsTooltip").c_str()
+        );
+    }
+
+    void RenderDynamicsActionBar()
+    {
+        const auto* style = GUI::GetStyle();
+        const auto spacing = style ? style->ItemSpacing.x : 8.0F;
+        const auto saveWidth = IconCTAButtonWidth(Trans::Tr("Dynamics.Menu.SaveSettingsButton").c_str());
+        const auto resetWidth = IconCTAButtonWidth(Trans::Tr("Dynamics.Menu.ResetDefaultsButton").c_str());
+        const auto rightGroupWidth = saveWidth + 6.0F + resetWidth;
+        const auto presetGroupWidth = (kPresetActionButtonWidth * 2.0F) + spacing;
+
+        RenderActionBar(presetGroupWidth, kPresetActionButtonHeight, rightGroupWidth, IconCTAButtonHeight(), RenderCreateDeleteButtons, RenderDynamicsSaveResetButtons);
+    }
+
+    void RenderPlayerDynamics();
+    void RenderNPCDynamics();
+    void RenderCameraDynamics();
+
+    void RenderDynamicsSections()
+    {
+        constexpr auto defaultOpen = GUI::ImGuiTreeNodeFlags_DefaultOpen;
+
+        if (GUI::CollapsingHeader(Trans::Tr("Dynamics.Menu.PlayerDynamicsHeader").c_str(), defaultOpen)) {
+            RenderPlayerDynamics();
+        }
 
         GUI::Spacing();
-        GUI::Spacing();
+
+        if (GUI::CollapsingHeader(Trans::Tr("Dynamics.Menu.NPCDynamicsHeader").c_str(), defaultOpen)) {
+            RenderNPCDynamics();
+        }
+
         GUI::Separator();
+
+        if (GUI::CollapsingHeader(Trans::Tr("Dynamics.Menu.CameraDynamicsHeader").c_str(), defaultOpen)) {
+            RenderCameraDynamics();
+        }
     }
 
     void RenderPlayerDynamics()
@@ -1212,6 +1319,7 @@ namespace UI {
 
         GUI::EndDisabled();
     }
+
     void RenderCameraDynamics()
     {
         auto& config = Dynamics::GetConfig();
@@ -1304,21 +1412,10 @@ namespace UI {
         const auto isCurrentPreset = Dynamics::IsPresetCurrent(editor.preset);
 
         if (editor.camera) {
-            const std::string previewLabel =
-                Trans::Tr("Dynamics.Editor.PreviewPrefix") + " " +
-                actorName + " " +
-                Trans::Tr("Dynamics.Editor.PresetLabel");
-
-            if (GUI::Checkbox(previewLabel.c_str(), &editor.preview)) {
-                if (editor.preview) {
-                    Dynamics::ApplyCameraCollisionRadius(editor.current.capsule.radius);
-                }
-                else {
-                    RestoreCameraEditorPreview();
-                }
+            if (!editor.preview) {
+                editor.preview = true;
+                Dynamics::ApplyCameraCollisionRadius(editor.current.capsule.radius);
             }
-
-            WrappedTooltip(Trans::Tr("Dynamics.Editor.CameraPreviewTooltip").c_str());
         }
         else if (editor.npcGlobal) {
             const std::string previewLabel =
@@ -1603,22 +1700,18 @@ namespace UI {
 
         GUI::SetNextItemWidth(260.0F);
 
-        if (GUI::InputText(Trans::Tr("Dynamics.CreatePreset.NameLabel").c_str(),
-            editor.name.data(),
-            editor.name.size()))
-        {
+        if (GUI::InputText(Trans::Tr("Dynamics.CreatePreset.NameLabel").c_str(), editor.name.data(), editor.name.size())) {
             editor.error.clear();
         }
 
-        if (GUI::Checkbox(Trans::Tr("Dynamics.CreatePreset.PreviewCheckbox").c_str(), &editor.preview))
-        {
+        if (GUI::Checkbox(Trans::Tr("Dynamics.CreatePreset.PreviewCheckbox").c_str(), &editor.preview)) {
             if (editor.preview)
                 ApplyCreatePresetPreview();
             else
                 RestoreCreatePresetPreview();
         }
 
-                                                                       //LEGENDMAN (safe to pass false for is camera here ?) 
+        //LEGENDMAN (safe to pass false for is camera here ?)
         const auto sliderResult = RenderCollisionSliders(editor.current, editor.defaults, editor.limits, false);
         if (sliderResult.changed) {
             ApplyCreatePresetPreview();
@@ -1638,7 +1731,6 @@ namespace UI {
         const std::string name = editor.name.data();
         const auto key = VCD::MakePresetKey(name);
         const auto duplicate = !key.empty() && VCD::Manager::GetSingleton().GetPresetConfig(key);
-
         const bool canSave = !key.empty() && !duplicate;
 
         std::string validationError{};
@@ -1658,10 +1750,7 @@ namespace UI {
             }
         }
 
-        const auto& error =
-            validationError.empty()
-            ? editor.error
-            : validationError;
+        const auto& error = validationError.empty() ? editor.error : validationError;
 
         if (!error.empty()) {
             GUI::TextWrapped("%s", error.c_str());
@@ -1680,96 +1769,14 @@ namespace UI {
     {
         TickEditorCollisionApply();
 
-        RenderCreateDeleteButtons();
+        RenderDynamicsActionBar();
 
-        constexpr auto defaultOpen = GUI::ImGuiTreeNodeFlags_DefaultOpen;
-
-        if (GUI::CollapsingHeader(Trans::Tr("Dynamics.Menu.PlayerDynamicsHeader").c_str(), defaultOpen)) {
-            RenderPlayerDynamics();
+        GUI::ImVec2 scrollSize{};
+        GUI::GetContentRegionAvail(&scrollSize);
+        if (GUI::BeginChild("DynamicsScrollRegion", scrollSize, GUI::ImGuiChildFlags_None, 0)) {
+            RenderDynamicsSections();
         }
-
-        GUI::Spacing();
-
-        if (GUI::CollapsingHeader(Trans::Tr("Dynamics.Menu.NPCDynamicsHeader").c_str(), defaultOpen)) {
-            RenderNPCDynamics();
-        }
-
-        GUI::Separator();
-
-        if (GUI::CollapsingHeader(Trans::Tr("Dynamics.Menu.CameraDynamicsHeader").c_str(), defaultOpen)) {
-            RenderCameraDynamics();
-        }
-
-        GUI::Separator();
-
-        if (IconCTAButton(Trans::Tr("Dynamics.Menu.SaveSettingsButton").c_str(), Settings::IsDirty(), Icons::kSave)) {
-            Settings::Save();
-        }
- 
-        WrappedTooltip(
-            Trans::Tr("Dynamics.Menu.SaveSettingsTooltip").c_str()
-        );
-
-        GUI::SameLine(0.0F, 6.0F);
-
-        const bool changed = !Settings::IsDynamicsDefault();
-
-        if (IconCTAButton(Trans::Tr("Dynamics.Menu.ResetDefaultsButton").c_str(), changed, Icons::kReset)) {
-
-            const auto wasNPCDynamicsEnabled = Settings::GetSettings().enableNPCDynamics;
-            const auto wasCameraDynamicsEnabled = Settings::GetSettings().enableCameraDynamics;
-
-            Settings::ResetDynamics();
-
-            if (wasNPCDynamicsEnabled) {
-                Dynamics::RestoreNPCsToVanilla();
-            }
-            if (wasCameraDynamicsEnabled) {
-                Dynamics::RestoreCameraToVanilla();
-            }
-
-            if (RefreshPresetEditor()) {
-                auto& editor = GetPresetEditorState();
-
-                if (editor.camera && editor.preview) {
-                    Dynamics::ApplyCameraCollisionRadius(editor.current.capsule.radius);
-                }
-                else if (editor.npcPreview) {
-                    auto actorPtr = editor.previewActor.get();
-                    auto* actor = actorPtr.get();
-
-                    if (actor) {
-                        VCD::Manager::GetSingleton().SetCollisionData(
-                            actor,
-                            editor.current,
-                            editor.preset,
-                            VCD::PresetName(editor.preset),
-                            PoseFixes::NPCPose(actor),
-                            false
-                        );
-                    }
-                }
-                else if (editor.npcGlobal) {
-                    if (auto* actor = GetSelectedNPCActorPtr()) {
-                        VCD::Manager::GetSingleton().SetCollisionData(
-                            actor,
-                            editor.current,
-                            editor.preset,
-                            VCD::PresetName(editor.preset),
-                            PoseFixes::NPCPose(actor),
-                            false
-                        );
-                    }
-                }
-                else {
-                    PreviewPreset(editor.preset);
-                }
-            }
-        }
-
-        WrappedTooltip(
-            Trans::Tr("Dynamics.Menu.ResetDefaultsTooltip").c_str()
-        );
+        GUI::EndChild();
 
         RenderPresetEditor();
         RenderCreatePresetEditor();

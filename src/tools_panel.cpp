@@ -21,21 +21,6 @@ namespace UI {
         spdlog::flush_on(level);
     }
 
-    void RenderReadout()
-    {
-        const auto& state = Dynamics::GetPresetState();
-        const auto& preview = Dynamics::GetPreviewState();
-
-        GUI::Text(Trans::Tr("Tools.CurrentDynamics.CurrentState").c_str(), state.stateName);
-
-        GUI::Text(Trans::Tr("Tools.CurrentDynamics.CurrentPreset").c_str(),
-            state.applied ? VCD::PresetName(state.current) : Trans::Tr("Common.Unknown").c_str());
-
-        if (preview.active) {
-            GUI::Text(Trans::Tr("Tools.CurrentDynamics.PreviewPreset").c_str(), VCD::PresetName(preview.preset));
-        }
-    }
-
     void RenderVisualization()
     {
         auto& settings = Settings::GetSettings();
@@ -157,15 +142,36 @@ namespace UI {
         GUI::PopStyleColor();
     }
 
-    void __stdcall RenderToolsMenu()
+    void RenderToolsSaveResetButtons()
     {
-        constexpr auto defaultOpen = GUI::ImGuiTreeNodeFlags_DefaultOpen;
-
-        if (GUI::CollapsingHeader(Trans::Tr("Tools.CurrentDynamics.Header").c_str(), defaultOpen)) {
-            RenderReadout();
+        if (IconCTAButton(Trans::Tr("Tools.Save.Button").c_str(), Settings::IsToolsDirty(), Icons::kSave)) {
+            Settings::SaveTools();
         }
 
-        GUI::Spacing();
+        Tooltip(Trans::Tr("Tools.Save.Tooltip").c_str());
+
+        GUI::SameLine(0.0F, 6.0F);
+
+        if (IconCTAButton(Trans::Tr("Tools.Default.Button").c_str(), !Settings::IsToolsDefault(), Icons::kReset)) {
+            Settings::ResetTools();
+            ClearDrawLines();
+        }
+
+        Tooltip(Trans::Tr("Tools.Default.Tooltip").c_str());
+    }
+
+    void RenderToolsActionBar()
+    {
+        const auto saveWidth = IconCTAButtonWidth(Trans::Tr("Tools.Save.Button").c_str());
+        const auto resetWidth = IconCTAButtonWidth(Trans::Tr("Tools.Default.Button").c_str());
+        const auto rightGroupWidth = saveWidth + 6.0F + resetWidth;
+
+        RenderActionBar(0.0F, 0.0F, rightGroupWidth, IconCTAButtonHeight(), [] {}, RenderToolsSaveResetButtons);
+    }
+
+    void RenderToolsSections()
+    {
+        constexpr auto defaultOpen = GUI::ImGuiTreeNodeFlags_DefaultOpen;
 
         if (GUI::CollapsingHeader(Trans::Tr("Tools.Visualization.Header").c_str(), defaultOpen)) {
             RenderVisualization();
@@ -176,24 +182,18 @@ namespace UI {
         if (GUI::CollapsingHeader(Trans::Tr("Tools.Logging.Header").c_str(), defaultOpen)) {
             RenderLogging();
         }
+    }
 
-        GUI::Spacing();
+    void __stdcall RenderToolsMenu()
+    {
+        RenderToolsActionBar();
 
-        if (IconCTAButton(Trans::Tr("Tools.Save.Button").c_str(), Settings::IsToolsDirty(), Icons::kSave)) {
-            Settings::SaveTools();
+        GUI::ImVec2 scrollSize{};
+        GUI::GetContentRegionAvail(&scrollSize);
+        if (GUI::BeginChild("ToolsScrollRegion", scrollSize, GUI::ImGuiChildFlags_None, 0)) {
+            RenderToolsSections();
         }
-
-        Tooltip(Trans::Tr("Tools.Save.Tooltip").c_str());
-
-        GUI::SameLine();
-
-        if (IconCTAButton(Trans::Tr("Tools.Default.Button").c_str(), !Settings::IsToolsDefault(), Icons::kReset)) {
-            Settings::ResetTools();
-            ClearDrawLines();
-        }
-
-        Tooltip(Trans::Tr("Tools.Default.Tooltip").c_str());
-
+        GUI::EndChild();
 
     }
 

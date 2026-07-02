@@ -28,6 +28,7 @@ namespace UI::Color {
     inline constexpr GUI::ImVec4 kDeletePresetActive{ 0.36F, 0.14F, 0.14F, 1.00F };
     inline constexpr GUI::ImVec4 kDeletePresetText{ 1.00F, 0.84F, 0.84F, 1.00F };
     inline constexpr GUI::ImVec4 kDeletePresetBorder{ 0.78F, 0.35F, 0.35F, 0.90F };
+    inline constexpr GUI::ImVec4 kActionBarRule{ 0.54F, 0.50F, 0.42F, 0.78F };
     inline constexpr GUI::ImVec4 kTransparent{ 0.0F, 0.0F, 0.0F, 0.0F };
 
 }
