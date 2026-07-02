@@ -64,7 +64,7 @@ namespace Hook {
     {
         static void thunk(
             RE::ThirdPersonState* a_state,
-            RE::NiPoint3* rotation,
+            float* rotation,
             bool a_flag,
             bool a_someFlag
         );

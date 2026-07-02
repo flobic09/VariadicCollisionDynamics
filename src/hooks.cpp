@@ -185,7 +185,7 @@ void MenuTopicManagerHook::Install()
 // without my changes being overwritten by camera update hooks next frame
 void ThirdPersonState_SetRotation::thunk(
 	RE::ThirdPersonState* a_state,
-	RE::NiPoint3* rotation,
+	float* rotation,
 	bool a_flag,
 	bool a_someFlag)
 {
@@ -222,19 +222,23 @@ void ThirdPersonState_SetRotation::Install()
 	SKSE::AllocTrampoline(1 << 7);
 	auto& trampoline = SKSE::GetTrampoline();
 
-	// Hook BOTH call sites to FUN_1408e8640
-	std::vector<REL::Offset> sites = {
-		REL::Offset(0x8E79F8),  // Call site 1
-		REL::Offset(0x8E7CAB)   // Call site 2
+	// IDA / Ghidra Address [AE 1408e8640 REL: 50911]
+
+	std::array targets{
+		std::make_pair(
+			RELOCATION_ID(49960, 50896),  // AE 1408E7810 SE 14084F490
+			REL::VariantOffset{ 0x144, 0x1E8, 0 }  // Offset to the CALL instruction
+		),
+		std::make_pair(
+			RELOCATION_ID(49966, 50902),  // AE sub_1408E7C50 SE 14084f830  ThirdPersonState::ResetFreeRotation() 
+			REL::VariantOffset{ 0x5B, 0x5B, 0 }  // Offset to the CALL instruction
+		)
 	};
 
-	// Hook the first one to get the function pointer
-	REL::Relocation<std::uintptr_t> firstSite{ sites[0] };
-	func = trampoline.write_call<5>(firstSite.address(), thunk);
-
-	// Hook the second one
-	REL::Relocation<std::uintptr_t> secondSite{ sites[1] };
-	trampoline.write_call<5>(secondSite.address(), thunk);
+	for (auto& [id, offset] : targets) {
+		REL::Relocation<std::uintptr_t> target(id, offset);
+		func = trampoline.write_call<5>(target.address(), thunk);
+	}
 
 	logger::info("ThirdPersonState_SetRotation hook installed");
 }
