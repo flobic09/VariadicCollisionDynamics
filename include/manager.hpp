@@ -14,14 +14,13 @@
 #include <unordered_map>
 #include <vector>
 
-namespace cameraGlobals {
-
-    inline float CollisionPosX = 0.0f;
-
-    inline float CollisionPosY = 0.0f;
-}
-
 namespace VCD {
+
+    struct CameraCollisionState
+    {
+        float positionX{ 0.0f };
+        float positionY{ 0.0f };
+    };
 
     struct PresetKeyHash
     {
@@ -351,6 +350,12 @@ namespace VCD {
         }
 
         return a_materialID == RE::MATERIAL_ID::kTrap;
+    }
+
+    inline CameraCollisionState& GetCameraCollisionState()
+    {
+        static CameraCollisionState state{};
+        return state;
     }
 
 }
