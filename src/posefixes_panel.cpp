@@ -4,6 +4,55 @@
 #include "translate.hpp"
 
 namespace UI {
+
+	void ResetPoseFixesToDefaults()
+	{
+		Settings::ResetPoseFixes();
+		Dynamics::GetNPCDynamicsState().actors.clear();
+
+		if (auto* player = RE::PlayerCharacter::GetSingleton()) {
+			const auto poseFlags = PoseFixes::PlayerPose(player);
+			auto& manager = VCD::Manager::GetSingleton();
+
+			if (player->IsSneaking()) {
+				manager.FixSneakingPose(player, poseFlags, false);
+			}
+			else if (poseFlags.isSitting) {
+				const auto& state = Dynamics::GetPresetState();
+				if (state.applied) {
+					manager.SetPreset(player, state.current, poseFlags, false);
+				}
+				else {
+					manager.FixSittingPose(player, poseFlags, false);
+				}
+			}
+		}
+	}
+
+	void RenderPoseFixesSaveResetButtons()
+	{
+		if (IconCTAButton(Trans::Tr("Dynamics.PoseFix.SaveButton").c_str(), Settings::IsPoseFixesDirty(), Icons::kSave)) {
+			Settings::SavePoseFixes();
+		}
+		Tooltip(Trans::Tr("Dynamics.PoseFix.SaveTooltip").c_str());
+
+		GUI::SameLine(0.0F, 6.0F);
+
+		if (IconCTAButton(Trans::Tr("Dynamics.PoseFix.DefaultButton").c_str(), !Settings::IsPoseFixesDefault(), Icons::kReset)) {
+			ResetPoseFixesToDefaults();
+		}
+		Tooltip(Trans::Tr("Dynamics.PoseFix.DefaultTooltip").c_str());
+	}
+
+	void RenderPoseFixesActionBar()
+	{
+		const auto saveWidth = IconCTAButtonWidth(Trans::Tr("Dynamics.PoseFix.SaveButton").c_str());
+		const auto resetWidth = IconCTAButtonWidth(Trans::Tr("Dynamics.PoseFix.DefaultButton").c_str());
+		const auto rightGroupWidth = saveWidth + 6.0F + resetWidth;
+
+		RenderActionBar(0.0F, 0.0F, rightGroupWidth, IconCTAButtonHeight(), [] {}, RenderPoseFixesSaveResetButtons);
+	}
+
 	void RenderPoseFixes()
 	{
 		auto& settings = Settings::GetSettings();
@@ -88,43 +137,18 @@ namespace UI {
 
 			GUI::EndTable();
 		}
-
-		GUI::Spacing();
-
-		if (IconCTAButton(Trans::Tr("Dynamics.PoseFix.SaveButton").c_str(), Settings::IsPoseFixesDirty(), Icons::kSave)) {
-			Settings::SavePoseFixes();
-		}
-		Tooltip(Trans::Tr("Dynamics.PoseFix.SaveTooltip").c_str());
-
-		GUI::SameLine(0.0F, 6.0F);
-
-		if (IconCTAButton(Trans::Tr("Dynamics.PoseFix.DefaultButton").c_str(), !Settings::IsPoseFixesDefault(), Icons::kReset)) {
-			Settings::ResetPoseFixes();
-			Dynamics::GetNPCDynamicsState().actors.clear();
-
-			if (auto* player = RE::PlayerCharacter::GetSingleton()) {
-				const auto poseFlags = PoseFixes::PlayerPose(player);
-				auto& manager = VCD::Manager::GetSingleton();
-
-				if (player->IsSneaking()) {
-					manager.FixSneakingPose(player, poseFlags, false);
-				}
-				else if (poseFlags.isSitting) {
-					const auto& state = Dynamics::GetPresetState();
-					if (state.applied) {
-						manager.SetPreset(player, state.current, poseFlags, false);
-					}
-					else {
-						manager.FixSittingPose(player, poseFlags, false);
-					}
-				}
-			}
-		}
-		Tooltip(Trans::Tr("Dynamics.PoseFix.DefaultTooltip").c_str());
 	}
+
 	void __stdcall RenderPoseFixesMenu()
 	{
-		RenderPoseFixes();
+		RenderPoseFixesActionBar();
+
+		GUI::ImVec2 scrollSize{};
+		GUI::GetContentRegionAvail(&scrollSize);
+		if (GUI::BeginChild("PoseFixesScrollRegion", scrollSize, GUI::ImGuiChildFlags_None, 0)) {
+			RenderPoseFixes();
+		}
+		GUI::EndChild();
 	}
 
 }

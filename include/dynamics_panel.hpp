@@ -181,4 +181,10 @@ namespace UI {
 
     void OpenDeletePresetEditor();
 
+    void RenderPlayerDynamics();
+
+    void RenderNPCDynamics();
+    
+    void RenderCameraDynamics();
+
 }

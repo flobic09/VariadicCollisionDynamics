@@ -7,11 +7,6 @@
     TOOLS TAB
     ============================================================ */
 
-  "Tools.CurrentDynamics.Header": "Current Dynamics",
-  "Tools.CurrentDynamics.CurrentState": "Current State",
-  "Tools.CurrentDynamics.CurrentPreset": "Current Preset",
-  "Tools.CurrentDynamics.PreviewPreset": "Preview Preset",
-
   "Tools.Visualization.Header" : "Bump Visualization",
   "Tools.Visualization.DrawPlayerCollision": "Draw Player Collision",
   "Tools.Visualization.DrawNearbyActors": "Draw Nearby Actors",
@@ -35,7 +30,7 @@
   "Tools.Save.Button": "Save Tools",
   "Tools.Save.Tooltip": "Save Tools panel settings to disk.",
 
-  "Tools.Default.Button": "Default",
+  "Tools.Default.Button": "Reset Tools",
   "Tools.Default.Tooltip": "Reset Tools panel settings to defaults without saving.",
 
 
@@ -100,7 +95,7 @@
   "Dynamics.Menu.SaveSettingsButton": "Save Dynamics",
   "Dynamics.Menu.SaveSettingsTooltip": "Save dynamics state and preset overrides to disk.",
 
-  "Dynamics.Menu.ResetDefaultsButton": "Default",
+  "Dynamics.Menu.ResetDefaultsButton": "Reset Dynamics",
   "Dynamics.Menu.ResetDefaultsTooltip": "Reset dynamics state and preset overrides to defaults without saving.",
 
   "Dynamics.Camera.ResetButton": "Default",
@@ -164,6 +159,6 @@
   "Dynamics.PoseFix.SaveButton": "Save Pose Fixes",
   "Dynamics.PoseFix.SaveTooltip": "Save Pose Fixes settings to disk.",
 
-  "Dynamics.PoseFix.DefaultButton": "Default",
+  "Dynamics.PoseFix.DefaultButton": "Reset Pose Fixes",
   "Dynamics.PoseFix.DefaultTooltip": "Reset Pose Fixes settings to defaults without saving."
 }
