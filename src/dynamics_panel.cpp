@@ -1040,6 +1040,8 @@ namespace UI {
     void RenderCreateDeleteButtons()
     {
         static const auto circlePlusText = FontAwesome::UnicodeToUtf8(Icons::kCirclePlus);
+        const auto createPresetWidth = PresetActionButtonWidth(Trans::Tr("Dynamics.CreatePreset.Button").c_str());
+        const auto deletePresetWidth = PresetActionButtonWidth(Trans::Tr("Dynamics.DeletePreset.Button").c_str());
 
         GUI::PushStyleVar(GUI::ImGuiStyleVar_FrameRounding, 5.0F);
         GUI::PushStyleVar(GUI::ImGuiStyleVar_FrameBorderSize, 1.0F);
@@ -1052,7 +1054,7 @@ namespace UI {
         const bool createPreset =
             GUI::Button(
                 ("        " + Trans::Tr("Dynamics.CreatePreset.Button") + "##CreateNewPreset").c_str(),
-                GUI::ImVec2{ kPresetActionButtonWidth, kPresetActionButtonHeight }
+                GUI::ImVec2{ createPresetWidth, kPresetActionButtonHeight }
             );
 
         WrappedTooltip(
@@ -1115,7 +1117,7 @@ namespace UI {
         const bool deletePreset =
             GUI::Button(
                 ("        " + Trans::Tr("Dynamics.DeletePreset.Button") + "##DeletePreset").c_str(),
-                GUI::ImVec2{ kPresetActionButtonWidth, kPresetActionButtonHeight }
+                GUI::ImVec2{ deletePresetWidth, kPresetActionButtonHeight }
             );
         WrappedTooltip(hasCustomPresets ? Trans::Tr("Dynamics.DeletePreset.Tooltip.Custom").c_str() :
                                           Trans::Tr("Dynamics.DeletePreset.Tooltip.Default").c_str());
@@ -1223,7 +1225,9 @@ namespace UI {
         const auto saveWidth = IconCTAButtonWidth(Trans::Tr("Dynamics.Menu.SaveSettingsButton").c_str());
         const auto resetWidth = IconCTAButtonWidth(Trans::Tr("Dynamics.Menu.ResetDefaultsButton").c_str());
         const auto rightGroupWidth = saveWidth + 6.0F + resetWidth;
-        const auto presetGroupWidth = (kPresetActionButtonWidth * 2.0F) + spacing;
+        const auto createPresetWidth = PresetActionButtonWidth(Trans::Tr("Dynamics.CreatePreset.Button").c_str());
+        const auto deletePresetWidth = PresetActionButtonWidth(Trans::Tr("Dynamics.DeletePreset.Button").c_str());
+        const auto presetGroupWidth = createPresetWidth + spacing + deletePresetWidth;
 
         RenderActionBar(presetGroupWidth, kPresetActionButtonHeight, rightGroupWidth, IconCTAButtonHeight(), RenderCreateDeleteButtons, RenderDynamicsSaveResetButtons);
     }

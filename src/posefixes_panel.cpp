@@ -58,7 +58,7 @@ namespace UI {
 		auto& settings = Settings::GetSettings();
 
 		if (GUI::BeginTable("PoseFixSettings", 2)) {
-			GUI::TableSetupColumn(Trans::Tr("Dynamics.PoseFix.Column.Fix").c_str(), GUI::ImGuiTableColumnFlags_WidthFixed, 220.0F);
+			GUI::TableSetupColumn(Trans::Tr("Dynamics.PoseFix.Column.Fix").c_str(), GUI::ImGuiTableColumnFlags_WidthFixed, 340.0F);
 			GUI::TableSetupColumn(Trans::Tr("Dynamics.PoseFix.Column.Scale").c_str(), GUI::ImGuiTableColumnFlags_WidthStretch);
 
 			GUI::TableNextRow();

@@ -49,6 +49,14 @@ namespace UI {
         return GUI::GetFontSize() + ((style ? style->FramePadding.y : 6.0F) * 2.0F);
     }
 
+    inline float PresetActionButtonWidth(const char* a_label)
+    {
+        const auto label = "        " + std::string(a_label);
+        GUI::ImVec2 labelSize{};
+        GUI::CalcTextSize(&labelSize, label.c_str(), nullptr, false, -1.0F);
+        return std::max(kPresetActionButtonWidth, labelSize.x + 28.0F);
+    }
+
     inline void DrawLine(const GUI::ImVec2& a_start, const GUI::ImVec2& a_end, const GUI::ImVec4& a_color, const float& a_thickness = 1.0F)
     {
         GUI::ImDrawListManager::AddLine(
