@@ -244,7 +244,7 @@ void ThirdPersonState_SetRotation::Install()
 	logger::info("ThirdPersonState_SetRotation hook installed");
 }
 
-//called for arrows, player character
+//hook this funcs caller func check character collision and filter for camera phantom
 void BhkSimpleShapePhantom_SetPosition::thunk(RE::bhkSimpleShapePhantom* phantom, RE::hkVector4* position)
 {
 	auto playerCamera = RE::PlayerCamera::GetSingleton();
@@ -261,7 +261,6 @@ void BhkSimpleShapePhantom_SetPosition::thunk(RE::bhkSimpleShapePhantom* phantom
 				position->quad.m128_f32[1] += cameraGlobals::CollisionPosY * worldScale;
 			}
 		
-	
 	func(phantom, position);
 }
 
@@ -298,7 +297,5 @@ void Hook::Install() {
 	ThirdPersonState_SetRotation::Install();
 
 	BhkSimpleShapePhantom_SetPosition::Install();
-
-
 }
 
