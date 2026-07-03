@@ -94,7 +94,7 @@ void SneakHandlerProcessButton::thunk(
 			standingHeight = player->GetHeight();
 		}
 
-		if (!raycast::canStandUp(standingHeight)) {
+		if (!Raycast::canStandUp(standingHeight)) {
 			return;
 		}
 	}
