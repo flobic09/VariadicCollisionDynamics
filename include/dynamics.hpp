@@ -221,6 +221,10 @@ namespace Dynamics {
 
 	VCD::Preset GetNPCPreset(const RE::Actor* a_actor, const char*& a_stateName);
 
+	const VCD::CollisionData* GetNPCCollisionData(const RE::FormID& a_formID, const VCD::Preset& a_preset);
+
+	void TrackPoseFixedNPC(RE::Actor* a_actor);
+
 	bool ApplyNPCPreset(RE::Actor* a_actor, const VCD::Preset& a_preset, const char* a_stateName);
 
 	bool StartPresetPreview(const RE::PlayerCharacter* a_player, const VCD::Preset& a_preset);
