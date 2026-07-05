@@ -229,11 +229,11 @@ void ThirdPersonState_SetRotation::Install()
 	std::array targets{
 		std::make_pair(
 			RELOCATION_ID(49960, 50896),  // AE 1408E7810 SE 14084F490
-			REL::VariantOffset{ 0x144, 0x1E8, 0}  // Offset to the CALL instruction
+			REL::VariantOffset{ 0x144, 0x1E8, 0x147 }  // Offset to the CALL instruction
 		),
 		std::make_pair(
 			RELOCATION_ID(49966, 50902),  // AE sub_1408E7C50 SE 14084f830  ThirdPersonState::ResetFreeRotation() 
-			REL::VariantOffset{ 0x5B, 0x5B, 0 }  // Offset to the CALL instruction
+			REL::VariantOffset{ 0x5B, 0x5B, 0x5B }  // Offset to the CALL instruction
 		)
 	};
 
