@@ -130,7 +130,7 @@ void SneakHandlerProcessButton::Install()
         return;
     }
 	
-	func = REL::Relocation<std::uintptr_t>(RE::SneakHandler::VTABLE[0]).write_vfunc(REL::Relocate(0x04,0x04,0x30), thunk);
+	func = REL::Relocation<std::uintptr_t>(RE::SneakHandler::VTABLE[0]).write_vfunc(REL::Relocate(0x04,0x04,0x06), thunk);
 	logger::info("process sneak button hook installed");
 }
 
